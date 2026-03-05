@@ -1,24 +1,31 @@
 /* ============================================================
-   BATTLE ZONE - Free Fire Style Battle Royale
+   MINI ROYALE - Free Fire Style Battle Royale
    Main Stylesheet
    ============================================================ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; cursor: crosshair; width: 100vw; height: 100dvh; }
+body {
+    overflow: hidden; background: #000;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    cursor: crosshair; width: 100vw; height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
 canvas { display: block; width: 100vw; height: 100dvh; }
 
 /* ===== HUD ===== */
 #hud {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 12px; align-items: flex-end; z-index: 10; pointer-events: none;
+    display: flex; gap: 8px; align-items: flex-end; z-index: 10; pointer-events: none;
 }
 .hud-box {
-    background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 6px; padding: 8px 14px; color: #fff; text-align: center;
-    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 5px; padding: 6px 12px; color: #fff; text-align: center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    min-width: 54px;
 }
-.hud-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; margin-bottom: 3px; }
-.hud-value { font-size: 20px; font-weight: bold; }
+.hud-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.2px; color: #888; margin-bottom: 2px; }
+.hud-value { font-size: 18px; font-weight: bold; }
 #health-val { color: #4f4; }
 #shield-val { color: #4af; }
 #ammo-val { color: #ff4; transition: color 0.2s; }
@@ -39,15 +46,18 @@ canvas { display: block; width: 100vw; height: 100dvh; }
     flex: 1; height: 6px; background: rgba(0,0,0,0.6); border-radius: 3px;
     overflow: hidden; margin-left: 6px;
 }
-#health-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0c0, #4f4); border-radius: 3px; transition: width 0.3s; }
-#shield-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #28f, #6af); border-radius: 3px; transition: width 0.3s; }
+#health-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0c0, #4f4); border-radius: 3px; transition: width 0.25s ease-out; will-change: width; }
+#shield-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #28f, #6af); border-radius: 3px; transition: width 0.25s ease-out; will-change: width; }
 
 /* ===== Crosshair ===== */
 #crosshair {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 0; height: 0;
     z-index: 10; pointer-events: none; transition: opacity 0.2s;
 }
-#crosshair div { position: absolute; background: rgba(255,255,255,0.85); }
+#crosshair .ch-h,
+#crosshair .ch-v,
+#crosshair .ch-dot { position: absolute; background: rgba(255,255,255,0.85); }
 .ch-h { width: 18px; height: 2px; top: -1px; }
 .ch-v { width: 2px; height: 18px; left: -1px; }
 .ch-l { left: -24px; }
@@ -55,6 +65,72 @@ canvas { display: block; width: 100vw; height: 100dvh; }
 .ch-t { top: -24px; }
 .ch-b { top: 6px; }
 .ch-dot { width: 2px; height: 2px; left: -1px; top: -1px; background: #f44; border-radius: 50%; }
+
+/* ===== Aim Lock Indicator (Free Fire style reticle) ===== */
+#aim-lock {
+    position: absolute; left: -28px; top: -28px;
+    width: 56px; height: 56px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.08s;
+    background: none;
+}
+#aim-lock.locked { opacity: 1; }
+
+/* Outer segmented ring — conic-gradient with radial mask for ring shape */
+.al-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+        transparent 0deg, transparent 8deg,
+        #e01010 8deg, #e01010 82deg,
+        transparent 82deg, transparent 98deg,
+        #e01010 98deg, #e01010 172deg,
+        transparent 172deg, transparent 188deg,
+        #e01010 188deg, #e01010 262deg,
+        transparent 262deg, transparent 278deg,
+        #e01010 278deg, #e01010 352deg,
+        transparent 352deg, transparent 360deg
+    );
+    -webkit-mask-image: radial-gradient(transparent calc(50% - 4px), #000 calc(50% - 2px));
+    mask-image: radial-gradient(transparent calc(50% - 4px), #000 calc(50% - 2px));
+}
+
+/* Tick marks at 12, 3, 6, 9 o'clock */
+.al-seg {
+    position: absolute; background: #e01010;
+}
+.al-seg-t { width: 3px; height: 8px; left: 50%; top: -2px; transform: translateX(-50%); }
+.al-seg-b { width: 3px; height: 8px; left: 50%; bottom: -2px; transform: translateX(-50%); }
+.al-seg-l { width: 8px; height: 3px; top: 50%; left: -2px; transform: translateY(-50%); }
+.al-seg-r { width: 8px; height: 3px; top: 50%; right: -2px; transform: translateY(-50%); }
+
+/* Inner crosshair lines */
+.al-cross {
+    position: absolute; background: #e01010;
+}
+.al-ch { width: 16px; height: 2px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.al-cv { width: 2px; height: 16px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+/* Center dot */
+.al-dot {
+    position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: #e01010; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 6px rgba(255, 20, 20, 0.7);
+}
+
+/* Locked pulse */
+#aim-lock.locked .al-ring {
+    animation: aimRingPulse 0.8s ease-in-out infinite;
+}
+@keyframes aimRingPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
+/* When locked, hide the default white crosshair — red reticle takes over */
+#crosshair:has(#aim-lock.locked) .ch-h,
+#crosshair:has(#aim-lock.locked) .ch-v,
+#crosshair:has(#aim-lock.locked) .ch-dot { opacity: 0; transition: opacity 0.08s; }
 
 /* ===== Hit Marker ===== */
 #hitmarker {
@@ -83,12 +159,13 @@ canvas { display: block; width: 100vw; height: 100dvh; }
 
 /* ===== Minimap ===== */
 #minimap {
-    position: fixed; top: 15px; right: 15px; width: 190px; height: 190px;
-    background: rgba(0,0,0,0.65); border: 2px solid rgba(255,255,255,0.25);
-    border-radius: 10px; z-index: 10; pointer-events: none;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    position: fixed; top: 15px; right: 15px; width: 180px; height: 180px;
+    background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px; z-index: 10; pointer-events: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    overflow: hidden;
 }
-#minimap canvas { border-radius: 8px; }
+#minimap canvas { border-radius: 6px; width: 100%; height: 100%; display: block; }
 
 /* ===== Zone Warning ===== */
 #zone-warning {
@@ -124,53 +201,163 @@ canvas { display: block; width: 100vw; height: 100dvh; }
 /* ===== Start Screen ===== */
 #start-screen {
     position: fixed; inset: 0; z-index: 100;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #0a0a1a 0%, #0f1a2e 30%, #1a0a2e 70%, #0a1a1e 100%);
+    display: flex; align-items: center; justify-content: center;
+    background: #050510;
     overflow: hidden;
+    transition: opacity 0.5s ease-out;
+}
+#start-screen.hidden { opacity: 0; pointer-events: none; }
+
+/* Animated particle canvas background */
+#bg-particles {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    z-index: 0;
+}
+
+/* Ambient glow layers */
+#start-screen::before, #start-screen::after {
+    content: ''; position: absolute; border-radius: 50%; z-index: 1;
+    filter: blur(80px); pointer-events: none;
 }
 #start-screen::before {
-    content: ''; position: absolute; inset: 0;
-    background: radial-gradient(circle at 30% 40%, rgba(255,80,0,0.08) 0%, transparent 60%),
-                radial-gradient(circle at 70% 60%, rgba(0,100,255,0.08) 0%, transparent 60%);
+    width: 500px; height: 500px; top: -10%; left: -5%;
+    background: radial-gradient(circle, rgba(255,70,30,0.12) 0%, transparent 70%);
+    animation: glowDrift 8s ease-in-out infinite alternate;
 }
+#start-screen::after {
+    width: 400px; height: 400px; bottom: -5%; right: -5%;
+    background: radial-gradient(circle, rgba(30,80,255,0.1) 0%, transparent 70%);
+    animation: glowDrift 10s ease-in-out infinite alternate-reverse;
+}
+@keyframes glowDrift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(40px, 30px); }
+}
+
+/* Content wrapper */
+.ss-content {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+}
+
+/* Logo crosshair mark */
+.logo-mark {
+    margin-bottom: 20px;
+    animation: logoSpin 20s linear infinite;
+    filter: drop-shadow(0 0 20px rgba(255,100,50,0.3));
+}
+@keyframes logoSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.logo-mark svg { display: block; }
+
+/* Title */
 #start-screen h1 {
-    font-size: 72px; color: #fff; text-shadow: 0 0 40px rgba(255,100,0,0.4), 0 4px 20px rgba(0,0,0,0.5);
-    margin-bottom: 8px; letter-spacing: 6px; position: relative;
+    font-size: 72px; margin: 0 0 4px; letter-spacing: 10px; position: relative;
+    line-height: 1;
 }
-#start-screen h1 span { color: #f64; text-shadow: 0 0 30px rgba(255,100,0,0.6); }
-#start-screen .subtitle {
-    color: #777; font-size: 14px; margin-bottom: 50px; letter-spacing: 3px; text-transform: uppercase;
+.t-mini {
+    color: #fff; font-weight: 300; letter-spacing: 16px;
+    text-shadow: 0 0 30px rgba(255,255,255,0.15);
 }
+.t-royale {
+    color: #f64; font-weight: 900;
+    text-shadow: 0 0 40px rgba(255,100,50,0.5), 0 4px 30px rgba(0,0,0,0.5);
+    background: linear-gradient(180deg, #ff8844 0%, #dd3322 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.tagline {
+    color: rgba(255,255,255,0.25); font-size: 12px; letter-spacing: 8px;
+    text-transform: uppercase; margin-bottom: 30px; font-weight: 600;
+}
+
+/* Divider line */
+.ss-divider {
+    width: 60px; height: 2px; margin-bottom: 30px;
+    background: linear-gradient(90deg, transparent, #f64, transparent);
+}
+
+/* Start button */
 #start-btn {
-    padding: 16px 70px; font-size: 20px; background: linear-gradient(135deg, #f64, #e33);
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 56px; font-size: 16px;
+    background: linear-gradient(135deg, #f74, #e33);
     color: #fff; border: none; border-radius: 6px; cursor: pointer;
-    font-weight: bold; letter-spacing: 3px; text-transform: uppercase;
-    transition: transform 0.2s, box-shadow 0.2s; position: relative;
+    font-weight: 800; letter-spacing: 4px; text-transform: uppercase;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+    box-shadow: 0 4px 25px rgba(255,80,40,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
 }
-#start-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,80,0,0.5); }
+#start-btn::after {
+    content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: btnShine 3s ease-in-out infinite;
+}
+@keyframes btnShine {
+    0%, 100% { left: -100%; }
+    50% { left: 100%; }
+}
+#start-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 8px 40px rgba(255,80,40,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+#start-btn:active { transform: translateY(0) scale(0.98); }
+.btn-icon { font-size: 14px; opacity: 0.9; }
+
+/* Stats row */
+.ss-stats {
+    display: flex; align-items: center; gap: 20px;
+    margin-top: 35px; margin-bottom: 25px;
+}
+.ss-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ss-stat-num {
+    font-size: 28px; font-weight: 800; color: #fff;
+    text-shadow: 0 0 15px rgba(255,100,50,0.3);
+}
+.ss-stat-label {
+    font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 3px; font-weight: 600;
+}
+.ss-stat-sep {
+    width: 1px; height: 30px; background: rgba(255,255,255,0.08);
+}
+
+/* Controls info */
 .controls-info {
-    margin-top: 50px; color: #666; font-size: 12px; text-align: center; line-height: 2.2;
-    position: relative;
+    color: rgba(255,255,255,0.25); font-size: 11px; text-align: center; line-height: 2.4;
+    position: relative; max-width: 560px;
 }
 .controls-info kbd {
-    background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 3px;
-    border: 1px solid rgba(255,255,255,0.15); color: #bbb; font-size: 11px;
+    background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.45); font-size: 10px;
+    font-family: inherit;
+}
+
+/* Version badge */
+.ss-version {
+    position: absolute; bottom: 20px; right: 20px;
+    color: rgba(255,255,255,0.15); font-size: 11px; letter-spacing: 2px;
 }
 
 /* ===== Game Over ===== */
 #game-over {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100;
     display: none; flex-direction: column; align-items: center; justify-content: center;
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    animation: fadeInOverlay 0.3s ease-out;
+    transition: opacity 0.2s ease-out;
 }
-#game-over h1 { font-size: 52px; margin-bottom: 15px; letter-spacing: 3px; }
-#game-over .stats { color: #999; font-size: 16px; margin-bottom: 30px; letter-spacing: 1px; }
+@keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
+#game-over h1 { font-size: 48px; margin-bottom: 12px; letter-spacing: 3px; }
+#game-over .stats { color: #888; font-size: 15px; margin-bottom: 28px; letter-spacing: 1px; }
 #restart-btn {
-    padding: 14px 55px; font-size: 18px; background: linear-gradient(135deg, #f64, #e33);
-    color: #fff; border: none; border-radius: 6px; cursor: pointer;
+    padding: 13px 50px; font-size: 17px; background: linear-gradient(135deg, #f64, #e33);
+    color: #fff; border: none; border-radius: 5px; cursor: pointer;
     font-weight: bold; letter-spacing: 2px; text-transform: uppercase;
+    transition: transform 0.15s, box-shadow 0.15s;
 }
-#restart-btn:hover { box-shadow: 0 0 30px rgba(255,80,0,0.4); }
+#restart-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,80,0,0.4); }
 
 /* ===== Damage Flash + Direction ===== */
 #damage-flash {
@@ -198,11 +385,11 @@ canvas { display: block; width: 100vw; height: 100dvh; }
 /* ===== Weapon Info ===== */
 #weapon-info {
     position: fixed; bottom: 20px; right: 20px; z-index: 10; pointer-events: none;
-    background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 6px; padding: 8px 16px; color: #fff;
+    background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 5px; padding: 6px 14px; color: #fff;
 }
-#weapon-name { font-size: 13px; font-weight: bold; color: #f90; }
-#weapon-mode { font-size: 10px; color: #888; margin-top: 2px; }
+#weapon-name { font-size: 12px; font-weight: bold; color: #f90; }
+#weapon-mode { font-size: 9px; color: #777; margin-top: 2px; }
 
 /* ===== Reload Bar ===== */
 #reload-bar-wrap {
@@ -222,15 +409,15 @@ canvas { display: block; width: 100vw; height: 100dvh; }
 /* ===== Stance Indicator ===== */
 #stance-indicator {
     position: fixed; bottom: 20px; left: 20px; z-index: 10; pointer-events: none;
-    color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: #999; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
 }
 
 /* ===== Compass ===== */
 #compass {
     position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
     z-index: 10; pointer-events: none;
-    background: rgba(0,0,0,0.5); border-radius: 4px; padding: 3px 15px;
-    color: #ccc; font-size: 12px; font-weight: bold; letter-spacing: 2px;
+    background: rgba(0,0,0,0.45); border-radius: 4px; padding: 3px 14px;
+    color: #ccc; font-size: 11px; font-weight: bold; letter-spacing: 2px;
 }
 
 /* ===== Interaction Prompt ===== */
