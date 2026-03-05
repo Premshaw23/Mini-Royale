@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Battle Zone - Free Fire Style</title>
+    <title>Mini Royale - Free Fire Style</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff4444">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mini Royale">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="icon" href="favicon.ico">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mobile.css">
 </head>
@@ -11,7 +20,7 @@
 
 <!-- Start Screen -->
 <div id="start-screen">
-    <h1>BATTLE <span>ZONE</span></h1>
+    <h1>MINI <span>ROYALE</span></h1>
     <div class="subtitle">Battle Royale</div>
     <button id="start-btn">DROP IN</button>
     <div class="controls-info">
@@ -42,7 +51,7 @@
     <div class="hud-box"><div class="hud-label">Shield</div><div class="hud-value" id="shield-val">50</div></div>
     <div class="hud-box"><div class="hud-label">Ammo</div><div class="hud-value" id="ammo-val">30/90</div></div>
     <div class="hud-box"><div class="hud-label">Kills</div><div class="hud-value" id="kills-val">0</div></div>
-    <div class="hud-box"><div class="hud-label">Alive</div><div class="hud-value" id="alive-val">20</div></div>
+    <div class="hud-box"><div class="hud-label">Alive</div><div class="hud-value" id="alive-val">36</div></div>
     <div class="hud-box"><div class="hud-label">Nades</div><div class="hud-value" id="grenade-val">3</div></div>
 </div>
 
@@ -146,6 +155,11 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="game.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+</script>
 
 </body>
 </html>

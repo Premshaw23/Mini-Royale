@@ -1,4 +1,4 @@
-# Battle Zone - Free Fire Style Battle Royale
+# Mini Royale - Free Fire Style Battle Royale
 
 > **This project is entirely vibe coded** — built from scratch using AI-assisted development (GitHub Copilot) through natural language conversations. No boilerplate, no starter templates, no tutorials followed. Every line of code was generated through a collaborative human-AI vibe coding workflow where the developer described what they wanted in plain English, and the AI wrote the code. This is what vibe coding looks like — turning ideas into a fully playable game through conversation.
 
@@ -11,7 +11,7 @@
 
 ## What is This?
 
-A **fully playable 3D battle royale game** inspired by Free Fire, running entirely in the browser. Drop into a 500×500 map with 19 AI opponents, scavenge for loot, fight to be the last one standing as the zone closes in. Works on both desktop and mobile with full touch controls.
+A **fully playable 3D battle royale game** inspired by Free Fire, running entirely in the browser. Drop into a massive 1000×1000 map with 35 AI opponents, enter buildings for cover, scavenge for loot, and fight to be the last one standing as the zone closes in. Installable as a PWA for a native app experience. Works on both desktop and mobile with full touch controls.
 
 ---
 
@@ -26,25 +26,26 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Grenade system** — physics-based throwables with area damage and explosion effects
 - **Hit markers** — visual and audio feedback on every hit
 - **Muzzle flash** on the first-person weapon model
+- **Camera recoil** — realistic kick and recovery synced with fire direction (stronger on shotgun)
 
 ### Survival Mechanics
 - **150 HP** + **100 max shield** (start with 50 shield)
 - **Shield absorbs damage first** before HP is touched
 - **5-phase shrinking zone** with countdown timer — stay inside or take increasing damage
-- **50 loot pickups** scattered across the map: health packs, ammo boxes, shield potions, grenades
+- **100 loot pickups** scattered across the map: health packs, ammo boxes, shield potions, grenades
 
 ### World
-- **500×500 unit map** with varied terrain
-- **22 buildings** with walls, roofs, doors, and windows
-- **90 trees** (pine and deciduous varieties)
-- **40 rocks** as natural cover
-- **3 water areas** with animated surfaces
+- **1000×1000 unit map** with varied terrain and multiple named locations
+- **38 enterable buildings** — walk through doorways, take cover inside, with interior floors and window views
+- **200 trees** (pine and deciduous varieties)
+- **80 rocks** as natural cover
+- **5 water areas** with animated surfaces
 - **Dynamic clouds** drifting across the sky
-- **5 road networks** with lane markings and intersections
+- **6 road networks** with lane markings and intersections
 - **Fog system** for atmospheric depth
 
 ### AI Enemies
-- **19 bot opponents** with unique names and randomized appearances
+- **35 bot opponents** with unique names and randomized appearances
 - **Two AI states**: Wander (exploring) and Combat (engaging players)
 - **Strafing behavior** in close-range fights
 - **Enemy-vs-enemy combat** — bots fight each other too
@@ -77,25 +78,38 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Pixel ratio capping** at 2x to balance quality and performance
 - **PCF soft shadow maps** with 2048×2048 resolution
 - **ACES Filmic tone mapping** for cinematic color grading
+- **PWA support** — installable to home screen with offline caching, app icons, and standalone display
+- **Service Worker** — caches game assets for offline play after first load
 
 ---
 
 ## File Structure
 
 ```
-battle-zone/
-├── index.html          # Game HTML — all UI elements, screens, HUD
-├── game.js             # Game engine — all logic, rendering, AI, physics
+mini-royale/
+├── index.html                  # Game HTML — all UI elements, screens, HUD, PWA meta tags
+├── game.js                     # Game engine — all logic, rendering, AI, physics
+├── manifest.json               # PWA manifest — app name, icons, display mode, orientation
+├── sw.js                       # Service worker — offline caching of game assets
+├── favicon.ico                 # Browser tab icon
+├── favicon-16x16.png           # 16×16 favicon
+├── favicon-32x32.png           # 32×32 favicon
+├── apple-touch-icon.png        # iOS home screen icon
+├── android-chrome-192x192.png  # Android PWA icon (192×192)
+├── android-chrome-512x512.png  # Android PWA icon (512×512)
+├── logo.png                    # Game logo
 ├── css/
-│   ├── style.css       # Main stylesheet — HUD, screens, overlays, effects
-│   └── mobile.css      # Mobile touch controls, responsive adjustments, landscape lock
-└── README.md           # This file
+│   ├── style.css               # Main stylesheet — HUD, screens, overlays, effects
+│   └── mobile.css              # Mobile touch controls, responsive, landscape lock
+└── README.md                   # This file
 ```
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `index.html` | Game structure: start screen, game-over screen, HUD boxes, health/shield bars, crosshair, hit marker, ADS overlay, minimap, compass, zone timer, kill feed, damage indicators, weapon info, reload bar, pickup messages, mobile touch controls | ~130 |
-| `game.js` | Complete game engine: Three.js scene setup, world generation (buildings, trees, rocks, water, roads, clouds), player controller, first-person weapon, enemy AI (wander/combat FSM), shooting/bullet system, grenade physics, particle effects, loot/pickup system, zone shrinking, collision detection, HUD updates, minimap rendering, audio (Web Audio API), mobile input handling | ~1620 |
+| `index.html` | Game structure: start screen, game-over screen, HUD, mobile touch controls, PWA meta tags, service worker registration | ~170 |
+| `game.js` | Complete game engine: Three.js scene setup, world generation (enterable buildings, trees, rocks, water, roads, clouds), player controller with recoil, first-person weapon, enemy AI (wander/combat FSM), shooting/bullet system, grenade physics, particle effects, loot/pickup system, zone shrinking, wall-segment collision detection, HUD updates, minimap rendering, audio (Web Audio API), mobile input handling | ~1700 |
+| `manifest.json` | PWA manifest: app name, icons, standalone display, landscape orientation | ~25 |
+| `sw.js` | Service worker: install/activate/fetch handlers, asset caching for offline play | ~35 |
 | `css/style.css` | Desktop UI styles: HUD layout, health bars, crosshair, hit markers, ADS scope overlay, minimap frame, zone warning, kill feed animations, start/game-over screens, damage flash vignette, weapon info panel, compass, reload bar | ~240 |
 | `css/mobile.css` | Mobile-specific styles: virtual joystick, look zone, action buttons (fire/ADS/jump/crouch/reload/grenade/pickup), weapon switch strip, responsive HUD scaling, landscape orientation enforcement, rotate prompt | ~150 |
 
@@ -168,14 +182,15 @@ The game is balanced for longer, more strategic matches:
 |------|-------|
 | Player HP | 150 |
 | Max Shield | 100 (start with 50) |
+| Enemy Count | 35 bots |
 | Enemy Damage | 35% of weapon base damage |
 | Enemy Fire Rate | 2.5× slower than player |
 | Enemy Accuracy | 0.14–0.24 spread (lower = worse for bots) |
 | Enemy Sight Range | 35–60 units |
 | Enemy Bullet Speed | 55% of player bullet speed |
-| Zone Phase 1 Delay | 60 seconds |
+| Zone Phase 1 Delay | 80 seconds |
 | Zone Damage | 2 + phase number per second |
-| Loot Spawns | 50 items across the map |
+| Loot Spawns | 100 items across the map |
 
 ---
 
@@ -187,6 +202,7 @@ The game is balanced for longer, more strategic matches:
 - **CSS3** — all UI with backdrop-filter, gradients, keyframe animations
 - **HTML5** — semantic structure with Canvas for minimap
 - **Screen Orientation API** — mobile landscape lock
+- **PWA** — manifest.json + service worker for installable native-like experience
 
 ---
 
@@ -200,6 +216,7 @@ This entire project was **vibe coded** using [GitHub Copilot](https://github.com
 4. *"In mobile I want horizontal like Free Fire"* → Landscape mode enforcement
 5. *"Anything we can do better?"* → Performance optimizations, zone timer, low ammo warnings
 6. *"I die too fast, want good file structure and README"* → Game rebalancing, project restructuring
+7. *"Extend map, enter houses, camera sync, PWA, rename"* → 1000×1000 map, enterable buildings, recoil system, PWA with icons, renamed to Mini Royale
 
 No code was manually written. Every feature, every bug fix, every optimization was done through human-AI collaboration. That's vibe coding.
 

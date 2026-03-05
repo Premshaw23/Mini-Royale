@@ -1,19 +1,19 @@
 // ============================================================
-// BATTLE ZONE - Advanced Free Fire Style Battle Royale
+// MINI ROYALE - Advanced Free Fire Style Battle Royale
 // ============================================================
 
 // ---- CONSTANTS ----
-const MAP_SIZE = 500;
+const MAP_SIZE = 1000;
 const HALF_MAP = MAP_SIZE / 2;
 const GRAVITY = -30;
 const PLAYER_HEIGHT = 3.5;
 const CROUCH_HEIGHT = 2.2;
 const PLAYER_RADIUS = 1;
 const BULLET_SPEED = 220;
-const ENEMY_COUNT = 19;
-const LOOT_COUNT = 50;
-const TREE_COUNT = 90;
-const ROCK_COUNT = 40;
+const ENEMY_COUNT = 35;
+const LOOT_COUNT = 100;
+const TREE_COUNT = 200;
+const ROCK_COUNT = 80;
 const MAX_HP = 150;
 const MAX_SHIELD = 100;
 
@@ -40,6 +40,7 @@ let playerShield = 50;
 let grenadeCount = 3;
 let isCrouching = false, isADS = false;
 let headBob = 0, headBobTimer = 0;
+let recoilPitch = 0; // visual recoil offset
 let gameStarted = false, gameOver = false;
 let gameTime = 0;
 let fpWeaponGroup;
@@ -52,11 +53,11 @@ let zoneRadius = HALF_MAP;
 let zoneCenterX = 0, zoneCenterZ = 0;
 let zoneShrinkPhase = 0, zoneShrinkTimer = 0;
 const ZONE_PHASES = [
-    { delay: 60, target: 200, speed: 0.25 },
-    { delay: 50, target: 140, speed: 0.3 },
-    { delay: 40, target: 80,  speed: 0.4 },
-    { delay: 30, target: 35,  speed: 0.5 },
-    { delay: 20, target: 5,   speed: 0.7 },
+    { delay: 80, target: 400, speed: 0.3 },
+    { delay: 60, target: 280, speed: 0.35 },
+    { delay: 50, target: 160, speed: 0.45 },
+    { delay: 40, target: 70,  speed: 0.55 },
+    { delay: 25, target: 5,   speed: 0.7 },
 ];
 let zoneDamageTimer = 0;
 
@@ -81,9 +82,9 @@ const _particleGeo = new THREE.SphereGeometry(0.1, 4, 3);
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x7EC8E3);
-    scene.fog = new THREE.FogExp2(0x7EC8E3, 0.0025);
+    scene.fog = new THREE.FogExp2(0x7EC8E3, 0.0012);
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 600);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1200);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -105,11 +106,11 @@ function init() {
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 600;
-    sunLight.shadow.camera.left = -250;
-    sunLight.shadow.camera.right = 250;
-    sunLight.shadow.camera.top = 250;
-    sunLight.shadow.camera.bottom = -250;
+    sunLight.shadow.camera.far = 1200;
+    sunLight.shadow.camera.left = -500;
+    sunLight.shadow.camera.right = 500;
+    sunLight.shadow.camera.top = 500;
+    sunLight.shadow.camera.bottom = -500;
     scene.add(sunLight);
 
     const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x445522, 0.5);
@@ -205,7 +206,7 @@ function playSound(type) {
 
 // ---- GROUND ----
 function createGround() {
-    const groundGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 80, 80);
+    const groundGeo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 120, 120);
     const verts = groundGeo.attributes.position;
     for (let i = 0; i < verts.count; i++) {
         const x = verts.getX(i);
@@ -236,14 +237,15 @@ function createGround() {
     // Roads
     createRoad(0, 0, MAP_SIZE, 8, 0);
     createRoad(0, 0, MAP_SIZE, 8, Math.PI / 2);
-    createRoad(80, 60, 220, 6, Math.PI / 4);
-    createRoad(-100, -80, 200, 6, -Math.PI / 6);
-    createRoad(-150, 50, 160, 5, Math.PI / 3);
+    createRoad(160, 120, 440, 6, Math.PI / 4);
+    createRoad(-200, -160, 400, 6, -Math.PI / 6);
+    createRoad(-300, 100, 320, 5, Math.PI / 3);
+    createRoad(250, -100, 350, 6, Math.PI / 5);
 
     // Road markings
     for (let r = 0; r < 2; r++) {
         const rot = r === 0 ? 0 : Math.PI / 2;
-        for (let i = -20; i <= 20; i++) {
+        for (let i = -40; i <= 40; i++) {
             const dashGeo = new THREE.PlaneGeometry(6, 0.3);
             const dashMat = new THREE.MeshLambertMaterial({ color: 0xcccc44 });
             const dash = new THREE.Mesh(dashGeo, dashMat);
@@ -270,9 +272,11 @@ function createRoad(x, z, length, width, rotation) {
 // ---- WATER ----
 function createWaterAreas() {
     const waterPositions = [
-        { x: -180, z: 180, r: 35 },
-        { x: 190, z: -160, r: 28 },
-        { x: 50, z: 180, r: 20 },
+        { x: -360, z: 360, r: 45 },
+        { x: 380, z: -320, r: 35 },
+        { x: 100, z: 360, r: 28 },
+        { x: -300, z: -100, r: 30 },
+        { x: 200, z: 280, r: 25 },
     ];
     waterPositions.forEach(wp => {
         const geo = new THREE.CircleGeometry(wp.r, 24);
@@ -338,28 +342,55 @@ let mobileFiring = false;
 // ---- BUILDINGS ----
 function createBuildings() {
     const buildingConfigs = [
+        // Central town
         { x: 30, z: 30, w: 16, h: 12, d: 14, color: 0xd4a574, roofColor: 0x8B4513 },
         { x: 55, z: 25, w: 10, h: 8, d: 10, color: 0xe8c9a0, roofColor: 0xa0522d },
         { x: 35, z: 55, w: 12, h: 10, d: 12, color: 0xc4956a, roofColor: 0x8B4513 },
         { x: 60, z: 55, w: 20, h: 14, d: 16, color: 0xbbb8b0, roofColor: 0x696969 },
-        { x: -60, z: 120, w: 24, h: 16, d: 18, color: 0xa0a0a0, roofColor: 0x555555 },
-        { x: -30, z: 125, w: 10, h: 7, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
-        { x: -55, z: 150, w: 14, h: 10, d: 12, color: 0xc8b090, roofColor: 0x8B4513 },
-        { x: 140, z: -20, w: 18, h: 12, d: 14, color: 0xb8a080, roofColor: 0x654321 },
-        { x: 160, z: 10, w: 12, h: 9, d: 10, color: 0xd0c0a0, roofColor: 0x8B4513 },
-        { x: 130, z: 15, w: 8, h: 6, d: 8, color: 0xe0d0b0, roofColor: 0xa0522d },
-        { x: -120, z: -100, w: 22, h: 15, d: 18, color: 0x909090, roofColor: 0x444444 },
-        { x: -90, z: -110, w: 14, h: 10, d: 12, color: 0xc4956a, roofColor: 0x8B4513 },
-        { x: -140, z: -80, w: 12, h: 8, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
-        { x: -110, z: -70, w: 10, h: 7, d: 10, color: 0xe8d8c0, roofColor: 0x8B4513 },
-        { x: -170, z: 60, w: 16, h: 11, d: 14, color: 0xb0a090, roofColor: 0x654321 },
-        { x: 100, z: 140, w: 14, h: 10, d: 12, color: 0xc0b0a0, roofColor: 0x8B4513 },
-        { x: -50, z: -170, w: 20, h: 13, d: 16, color: 0x999999, roofColor: 0x555555 },
-        { x: 80, z: -140, w: 14, h: 9, d: 12, color: 0xd4a574, roofColor: 0x8B4513 },
-        { x: 180, z: 80, w: 10, h: 7, d: 10, color: 0xe0c8a0, roofColor: 0x8B4513 },
-        { x: -180, z: -150, w: 16, h: 10, d: 14, color: 0xb8a888, roofColor: 0x654321 },
-        { x: 0, z: -80, w: 14, h: 11, d: 12, color: 0xa89880, roofColor: 0x8B4513 },
         { x: -20, z: 50, w: 10, h: 8, d: 10, color: 0xd0b890, roofColor: 0xa0522d },
+        { x: 0, z: -80, w: 14, h: 11, d: 12, color: 0xa89880, roofColor: 0x8B4513 },
+        // NW village
+        { x: -120, z: 240, w: 24, h: 16, d: 18, color: 0xa0a0a0, roofColor: 0x555555 },
+        { x: -60, z: 250, w: 10, h: 7, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
+        { x: -110, z: 300, w: 14, h: 10, d: 12, color: 0xc8b090, roofColor: 0x8B4513 },
+        { x: -160, z: 270, w: 12, h: 9, d: 10, color: 0xe0d0b0, roofColor: 0xa0522d },
+        // NE outpost
+        { x: 280, z: 200, w: 18, h: 12, d: 14, color: 0xb8a080, roofColor: 0x654321 },
+        { x: 320, z: 220, w: 12, h: 9, d: 10, color: 0xd0c0a0, roofColor: 0x8B4513 },
+        { x: 260, z: 230, w: 8, h: 6, d: 8, color: 0xe0d0b0, roofColor: 0xa0522d },
+        // SE compound
+        { x: 300, z: -200, w: 22, h: 15, d: 18, color: 0x909090, roofColor: 0x444444 },
+        { x: 340, z: -180, w: 14, h: 10, d: 12, color: 0xc4956a, roofColor: 0x8B4513 },
+        { x: 270, z: -220, w: 12, h: 8, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
+        // SW hamlet
+        { x: -240, z: -200, w: 22, h: 15, d: 18, color: 0x909090, roofColor: 0x444444 },
+        { x: -180, z: -220, w: 14, h: 10, d: 12, color: 0xc4956a, roofColor: 0x8B4513 },
+        { x: -280, z: -160, w: 12, h: 8, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
+        { x: -220, z: -140, w: 10, h: 7, d: 10, color: 0xe8d8c0, roofColor: 0x8B4513 },
+        // West settlement
+        { x: -340, z: 120, w: 16, h: 11, d: 14, color: 0xb0a090, roofColor: 0x654321 },
+        { x: -380, z: 100, w: 12, h: 9, d: 10, color: 0xc0b0a0, roofColor: 0x8B4513 },
+        { x: -320, z: 80, w: 10, h: 7, d: 10, color: 0xe0c8a0, roofColor: 0x8B4513 },
+        // East settlement
+        { x: 360, z: 40, w: 14, h: 10, d: 12, color: 0xc0b0a0, roofColor: 0x8B4513 },
+        { x: 380, z: -30, w: 16, h: 11, d: 14, color: 0xb8a888, roofColor: 0x654321 },
+        // South outpost
+        { x: -50, z: -340, w: 20, h: 13, d: 16, color: 0x999999, roofColor: 0x555555 },
+        { x: 80, z: -280, w: 14, h: 9, d: 12, color: 0xd4a574, roofColor: 0x8B4513 },
+        { x: -100, z: -300, w: 10, h: 7, d: 10, color: 0xe0c8a0, roofColor: 0x8B4513 },
+        // North outpost
+        { x: 100, z: 320, w: 14, h: 10, d: 12, color: 0xc0b0a0, roofColor: 0x8B4513 },
+        { x: 150, z: 350, w: 18, h: 12, d: 14, color: 0xb0a090, roofColor: 0x654321 },
+        // Far corners - isolated buildings
+        { x: -400, z: -350, w: 16, h: 10, d: 14, color: 0xb8a888, roofColor: 0x654321 },
+        { x: 400, z: 350, w: 14, h: 9, d: 12, color: 0xd4a574, roofColor: 0x8B4513 },
+        { x: -400, z: 350, w: 12, h: 8, d: 10, color: 0xc8b090, roofColor: 0x8B4513 },
+        { x: 400, z: -350, w: 12, h: 8, d: 10, color: 0xe8c9a0, roofColor: 0xa0522d },
+        // Mid-ring buildings
+        { x: 200, z: 100, w: 10, h: 7, d: 10, color: 0xe0c8a0, roofColor: 0x8B4513 },
+        { x: -200, z: -50, w: 16, h: 11, d: 14, color: 0xb0a090, roofColor: 0x654321 },
+        { x: 150, z: -120, w: 12, h: 8, d: 10, color: 0xd4a574, roofColor: 0x8B4513 },
+        { x: -170, z: 120, w: 14, h: 10, d: 12, color: 0xc4956a, roofColor: 0x8B4513 },
     ];
     buildingConfigs.forEach(cfg => {
         createBuilding(cfg.x, cfg.z, cfg.w, cfg.h, cfg.d, cfg.color, cfg.roofColor);
@@ -368,13 +399,58 @@ function createBuildings() {
 
 function createBuilding(x, z, w, h, d, color, roofColor) {
     const group = new THREE.Group();
-    // Walls
     const wallMat = new THREE.MeshLambertMaterial({ color });
-    const wallGeo = new THREE.BoxGeometry(w, h, d);
-    const walls = new THREE.Mesh(wallGeo, wallMat);
-    walls.position.set(0, h / 2, 0);
-    walls.castShadow = true; walls.receiveShadow = true;
-    group.add(walls);
+    const wallThickness = 0.4;
+    const doorWidth = 3;
+    const doorHeight = 5;
+
+    // Floor inside building
+    const floorGeo = new THREE.PlaneGeometry(w - wallThickness * 2, d - wallThickness * 2);
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x8B7355 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, 0.06, 0);
+    floor.receiveShadow = true;
+    group.add(floor);
+
+    // Back wall (full, no door)
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(w, h, wallThickness), wallMat);
+    backWall.position.set(0, h / 2, -d / 2);
+    backWall.castShadow = true; backWall.receiveShadow = true;
+    group.add(backWall);
+
+    // Left wall (full)
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), wallMat);
+    leftWall.position.set(-w / 2, h / 2, 0);
+    leftWall.castShadow = true; leftWall.receiveShadow = true;
+    group.add(leftWall);
+
+    // Right wall (full)
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), wallMat);
+    rightWall.position.set(w / 2, h / 2, 0);
+    rightWall.castShadow = true; rightWall.receiveShadow = true;
+    group.add(rightWall);
+
+    // Front wall with door gap - split into left and right sections + top section above door
+    const frontLeftW = (w - doorWidth) / 2;
+    const frontLeftWall = new THREE.Mesh(new THREE.BoxGeometry(frontLeftW, h, wallThickness), wallMat);
+    frontLeftWall.position.set(-w / 2 + frontLeftW / 2, h / 2, d / 2);
+    frontLeftWall.castShadow = true; frontLeftWall.receiveShadow = true;
+    group.add(frontLeftWall);
+
+    const frontRightWall = new THREE.Mesh(new THREE.BoxGeometry(frontLeftW, h, wallThickness), wallMat);
+    frontRightWall.position.set(w / 2 - frontLeftW / 2, h / 2, d / 2);
+    frontRightWall.castShadow = true; frontRightWall.receiveShadow = true;
+    group.add(frontRightWall);
+
+    const aboveDoorH = h - doorHeight;
+    if (aboveDoorH > 0) {
+        const aboveDoor = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, aboveDoorH, wallThickness), wallMat);
+        aboveDoor.position.set(0, doorHeight + aboveDoorH / 2, d / 2);
+        aboveDoor.castShadow = true;
+        group.add(aboveDoor);
+    }
+
     // Roof
     const roofGeo = new THREE.ConeGeometry(Math.max(w, d) * 0.75, 4, 4);
     const roofMat = new THREE.MeshLambertMaterial({ color: roofColor });
@@ -383,22 +459,36 @@ function createBuilding(x, z, w, h, d, color, roofColor) {
     roof.rotation.y = Math.PI / 4;
     roof.castShadow = true;
     group.add(roof);
-    // Door
-    const doorGeo = new THREE.PlaneGeometry(3, 5);
-    const doorMat = new THREE.MeshLambertMaterial({ color: 0x4a3520, side: THREE.DoubleSide });
-    const door = new THREE.Mesh(doorGeo, doorMat);
-    door.position.set(0, 2.5, d / 2 + 0.05);
-    group.add(door);
-    // Windows
+
+    // Windows on side walls
     const winMat = new THREE.MeshLambertMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5 });
-    for (let wx of [-w * 0.3, w * 0.3]) {
+    for (let side of [-1, 1]) {
         const win = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), winMat);
-        win.position.set(wx, h * 0.6, d / 2 + 0.05);
+        win.position.set(side * w / 2 + side * 0.05, h * 0.6, 0);
+        win.rotation.y = Math.PI / 2;
         group.add(win);
     }
+
     group.position.set(x, 0, z);
     scene.add(group);
-    buildings.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2, h });
+
+    // Store wall segments for collision (each wall is a line segment with thickness)
+    const halfDoor = doorWidth / 2;
+    buildings.push({
+        x, z, w, h, d,
+        walls: [
+            // Back wall
+            { x1: x - w/2, z1: z - d/2, x2: x + w/2, z2: z - d/2 },
+            // Left wall
+            { x1: x - w/2, z1: z - d/2, x2: x - w/2, z2: z + d/2 },
+            // Right wall
+            { x1: x + w/2, z1: z - d/2, x2: x + w/2, z2: z + d/2 },
+            // Front wall left of door
+            { x1: x - w/2, z1: z + d/2, x2: x - halfDoor, z2: z + d/2 },
+            // Front wall right of door
+            { x1: x + halfDoor, z1: z + d/2, x2: x + w/2, z2: z + d/2 },
+        ]
+    });
 }
 
 // ---- ROCKS ----
@@ -766,11 +856,49 @@ function setupMobileControls() {
     lookZone.addEventListener('touchend', resetLook);
     lookZone.addEventListener('touchcancel', resetLook);
 
-    // Fire button
+    // Fire button — supports fire + look (drag to aim while holding fire)
     const btnFire = document.getElementById('btn-fire');
-    btnFire.addEventListener('touchstart', e => { e.preventDefault(); mobileFiring = true; mouseDown = true; btnFire.classList.add('firing'); }, { passive: false });
-    btnFire.addEventListener('touchend', e => { e.preventDefault(); mobileFiring = false; mouseDown = false; btnFire.classList.remove('firing'); }, { passive: false });
-    btnFire.addEventListener('touchcancel', e => { mobileFiring = false; mouseDown = false; btnFire.classList.remove('firing'); });
+    let fireTouchId = null;
+    let fireLastX = 0, fireLastY = 0;
+
+    btnFire.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        fireTouchId = t.identifier;
+        fireLastX = t.clientX;
+        fireLastY = t.clientY;
+        mobileFiring = true;
+        mouseDown = true;
+        btnFire.classList.add('firing');
+    }, { passive: false });
+
+    btnFire.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (const t of e.changedTouches) {
+            if (t.identifier === fireTouchId) {
+                const dx = t.clientX - fireLastX;
+                const dy = t.clientY - fireLastY;
+                yaw -= dx * 0.004;
+                pitch -= dy * 0.004;
+                pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+                fireLastX = t.clientX;
+                fireLastY = t.clientY;
+            }
+        }
+    }, { passive: false });
+
+    const resetFire = (e) => {
+        for (const t of e.changedTouches) {
+            if (t.identifier === fireTouchId) {
+                fireTouchId = null;
+                mobileFiring = false;
+                mouseDown = false;
+                btnFire.classList.remove('firing');
+            }
+        }
+    };
+    btnFire.addEventListener('touchend', resetFire, { passive: false });
+    btnFire.addEventListener('touchcancel', resetFire, { passive: false });
 
     // ADS button
     const btnAds = document.getElementById('btn-ads');
@@ -909,6 +1037,11 @@ function playerShoot() {
     weaponMag--;
     updateAmmoHUD();
     playSound('shoot');
+    // Camera recoil kick
+    const w2 = WEAPONS[currentWeaponIndex];
+    recoilPitch += (isADS ? 0.008 : 0.015) * (w2.name === 'Shotgun' ? 2.5 : 1);
+    pitch += (isADS ? 0.008 : 0.015) * (w2.name === 'Shotgun' ? 2.5 : 1);
+    yaw += (Math.random() - 0.5) * 0.005;
     if (weaponMag <= 0) startReload();
 }
 
@@ -1093,11 +1226,20 @@ function showDamageDirection(srcX, srcZ) {
 // ---- COLLISION ----
 function checkBuildingCollision(x, z, radius) {
     for (const b of buildings) {
-        const closestX = Math.max(b.minX, Math.min(x, b.maxX));
-        const closestZ = Math.max(b.minZ, Math.min(z, b.maxZ));
-        const dx = x - closestX;
-        const dz = z - closestZ;
-        if (dx * dx + dz * dz < radius * radius) return true;
+        for (const wall of b.walls) {
+            // Point-to-line-segment distance
+            const dx = wall.x2 - wall.x1;
+            const dz = wall.z2 - wall.z1;
+            const len2 = dx * dx + dz * dz;
+            let t = len2 > 0 ? ((x - wall.x1) * dx + (z - wall.z1) * dz) / len2 : 0;
+            t = Math.max(0, Math.min(1, t));
+            const closestX = wall.x1 + t * dx;
+            const closestZ = wall.z1 + t * dz;
+            const distX = x - closestX;
+            const distZ = z - closestZ;
+            const wallThick = 0.4;
+            if (distX * distX + distZ * distZ < (radius + wallThick) * (radius + wallThick)) return true;
+        }
     }
     return false;
 }
@@ -1269,6 +1411,13 @@ function updatePlayer(dt) {
     camera.rotation.order = 'YXZ';
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
+
+    // Recoil recovery — smoothly return camera after recoil kick
+    if (recoilPitch > 0) {
+        const recover = Math.min(recoilPitch, dt * 3);
+        recoilPitch -= recover;
+        pitch -= recover * 0.4;
+    }
 }
 
 function updateBullets(dt) {
@@ -1560,8 +1709,16 @@ function drawMinimap() {
     ctx.stroke();
 
     // Buildings
-    ctx.fillStyle = 'rgba(200,180,140,0.6)';
-    buildings.forEach(b => ctx.fillRect((b.minX+HALF_MAP)*scale, (b.minZ+HALF_MAP)*scale, (b.maxX-b.minX)*scale, (b.maxZ-b.minZ)*scale));
+    ctx.strokeStyle = 'rgba(200,180,140,0.7)';
+    ctx.lineWidth = 1.5;
+    buildings.forEach(b => {
+        for (const wall of b.walls) {
+            ctx.beginPath();
+            ctx.moveTo((wall.x1+HALF_MAP)*scale, (wall.z1+HALF_MAP)*scale);
+            ctx.lineTo((wall.x2+HALF_MAP)*scale, (wall.z2+HALF_MAP)*scale);
+            ctx.stroke();
+        }
+    });
 
     // Loot
     lootItems.forEach(l => {
