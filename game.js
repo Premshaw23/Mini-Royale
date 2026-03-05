@@ -11,11 +11,11 @@ const CROUCH_HEIGHT = 2.2;
 const PLAYER_RADIUS = 1;
 const BULLET_SPEED = 220;
 const ENEMY_COUNT = 19;
-const LOOT_COUNT = 30;
+const LOOT_COUNT = 50;
 const TREE_COUNT = 90;
 const ROCK_COUNT = 40;
-const MAX_HP = 100;
-const MAX_SHIELD = 50;
+const MAX_HP = 150;
+const MAX_SHIELD = 100;
 
 // Weapons
 const WEAPONS = [
@@ -36,7 +36,7 @@ let kills = 0, alive = ENEMY_COUNT + 1;
 let isReloading = false, reloadTimer = 0, reloadDuration = 0;
 let fireTimer = 0;
 let playerHealth = MAX_HP;
-let playerShield = 0;
+let playerShield = 50;
 let grenadeCount = 3;
 let isCrouching = false, isADS = false;
 let headBob = 0, headBobTimer = 0;
@@ -52,11 +52,11 @@ let zoneRadius = HALF_MAP;
 let zoneCenterX = 0, zoneCenterZ = 0;
 let zoneShrinkPhase = 0, zoneShrinkTimer = 0;
 const ZONE_PHASES = [
-    { delay: 35, target: 190, speed: 0.35 },
-    { delay: 28, target: 130, speed: 0.45 },
-    { delay: 22, target: 75,  speed: 0.55 },
-    { delay: 18, target: 35,  speed: 0.7 },
-    { delay: 12, target: 5,   speed: 0.9 },
+    { delay: 60, target: 200, speed: 0.25 },
+    { delay: 50, target: 140, speed: 0.3 },
+    { delay: 40, target: 80,  speed: 0.4 },
+    { delay: 30, target: 35,  speed: 0.5 },
+    { delay: 20, target: 5,   speed: 0.7 },
 ];
 let zoneDamageTimer = 0;
 
@@ -618,10 +618,10 @@ function createEnemies() {
             health: MAX_HP,
             name: names[i] || 'Bot',
             speed: 5 + Math.random() * 4,
-            sightRange: 40 + Math.random() * 30,
-            accuracy: 0.08 + Math.random() * 0.06,
-            damage: WEAPONS[weaponIdx].damage * 0.6,
-            fireRate: WEAPONS[weaponIdx].fireRate * 1.5,
+            sightRange: 35 + Math.random() * 25,
+            accuracy: 0.14 + Math.random() * 0.1,
+            damage: WEAPONS[weaponIdx].damage * 0.35,
+            fireRate: WEAPONS[weaponIdx].fireRate * 2.5,
             fireTimer: Math.random() * 2,
             state: 'wander',
             stateTimer: Math.random() * 5,
@@ -932,7 +932,7 @@ function enemyShoot(enemy) {
     const bulletMesh = new THREE.Mesh(_bulletGeo, _bulletMatEnemy);
     bulletMesh.position.set(enemy.x, 2.5, enemy.z);
     scene.add(bulletMesh);
-    bullets.push({ mesh: bulletMesh, dir, speed: BULLET_SPEED * 0.7, damage: enemy.damage, owner: 'enemy', life: 2, sourceX: enemy.x, sourceZ: enemy.z });
+    bullets.push({ mesh: bulletMesh, dir, speed: BULLET_SPEED * 0.55, damage: enemy.damage, owner: 'enemy', life: 2, sourceX: enemy.x, sourceZ: enemy.z });
 }
 
 // ---- GRENADE ----
@@ -1507,7 +1507,7 @@ function updateZone(dt) {
             zoneDamageTimer += dt;
             if (zoneDamageTimer >= 1) {
                 zoneDamageTimer = 0;
-                const dmg = 3 + zoneShrinkPhase * 2;
+                const dmg = 2 + zoneShrinkPhase;
                 applyDamageToPlayer(dmg);
             }
         }
