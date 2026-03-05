@@ -27,6 +27,7 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Hit markers** — visual and audio feedback on every hit
 - **Muzzle flash** on the first-person weapon model
 - **Camera recoil** — realistic kick and recovery synced with fire direction (stronger on shotgun)
+- **Red aim lock indicator** — pulsing red ring around crosshair when aiming at an enemy (Free Fire style)
 
 ### Survival Mechanics
 - **150 HP** + **100 max shield** (start with 50 shield)
@@ -45,7 +46,7 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Fog system** for atmospheric depth
 
 ### AI Enemies
-- **35 bot opponents** with unique names and randomized appearances
+- **35 bot opponents** with unique names displayed above their heads (36 unique name pool)
 - **Two AI states**: Wander (exploring) and Combat (engaging players)
 - **Strafing behavior** in close-range fights
 - **Enemy-vs-enemy combat** — bots fight each other too
@@ -53,11 +54,14 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Line-of-sight detection** with configurable sight range
 
 ### HUD & UI
-- **Real-time minimap** with FOV cone, enemy markers, loot dots, zone ring, and building outlines
+- **Player-centered minimap** — shows 200-unit radius around player, with FOV cone, pulsing enemy dots (closer = faster pulse), loot markers, zone ring, and building outlines
+- **Green triangle** player marker on minimap (always centered, north-up)
 - **Compass** showing heading in degrees + cardinal direction
 - **Zone countdown timer** — shows time until next shrink, flashes red during shrinking
 - **Kill feed** with elimination notifications
 - **Damage direction indicators** (top/bottom/left/right arrows)
+- **Red zone wall** — tall semi-transparent red cylinder showing the zone boundary
+- **Bot name sprites** — enemy names visible above their heads within 50 units
 - **Low ammo warning** — HUD flashes red when magazine is below 25%
 - **Health/Shield bars** with color-coded health states (green → yellow → red)
 - **Stance indicator** (Standing/Crouching)
@@ -65,10 +69,12 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 ### Mobile Support (Free Fire Style)
 - **Virtual joystick** for movement (left thumb)
 - **Touch look zone** for camera control (right side of screen)
+- **Sprint/Run button** (🏃) — toggle sprint while using joystick, like Free Fire
 - **Action buttons**: Fire, ADS, Jump, Crouch, Reload, Grenade, Pickup
 - **Weapon switch strip** at bottom of screen
 - **Landscape mode enforced** — portrait orientation shows a rotate prompt
 - **Responsive HUD** — all UI elements resize for mobile screens
+- **Draggable layout editor** (⚙) — reposition all buttons with drag & drop, save/reset to localStorage
 
 ### Technical
 - **Cached geometries** for bullets and particles (reduces GC pressure)
@@ -88,30 +94,33 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 ```
 mini-royale/
 ├── index.html                  # Game HTML — all UI elements, screens, HUD, PWA meta tags
-├── game.js                     # Game engine — all logic, rendering, AI, physics
-├── manifest.json               # PWA manifest — app name, icons, display mode, orientation
-├── sw.js                       # Service worker — offline caching of game assets
-├── favicon.ico                 # Browser tab icon
-├── favicon-16x16.png           # 16×16 favicon
-├── favicon-32x32.png           # 32×32 favicon
-├── apple-touch-icon.png        # iOS home screen icon
-├── android-chrome-192x192.png  # Android PWA icon (192×192)
-├── android-chrome-512x512.png  # Android PWA icon (512×512)
-├── logo.png                    # Game logo
+├── js/
+│   └── game.js                 # Game engine — all logic, rendering, AI, physics
 ├── css/
 │   ├── style.css               # Main stylesheet — HUD, screens, overlays, effects
 │   └── mobile.css              # Mobile touch controls, responsive, landscape lock
+├── assets/
+│   └── icons/
+│       ├── favicon.ico
+│       ├── favicon-16x16.png
+│       ├── favicon-32x32.png
+│       ├── apple-touch-icon.png
+│       ├── android-chrome-192x192.png
+│       ├── android-chrome-512x512.png
+│       └── logo.png
+├── manifest.json               # PWA manifest — app name, icons, display mode, orientation
+├── sw.js                       # Service worker — offline caching of game assets
 └── README.md                   # This file
 ```
 
 | File | Purpose | Lines |
 |------|---------|-------|
 | `index.html` | Game structure: start screen, game-over screen, HUD, mobile touch controls, PWA meta tags, service worker registration | ~170 |
-| `game.js` | Complete game engine: Three.js scene setup, world generation (enterable buildings, trees, rocks, water, roads, clouds), player controller with recoil, first-person weapon, enemy AI (wander/combat FSM), shooting/bullet system, grenade physics, particle effects, loot/pickup system, zone shrinking, wall-segment collision detection, HUD updates, minimap rendering, audio (Web Audio API), mobile input handling | ~1700 |
+| `js/game.js` | Complete game engine: Three.js scene setup, world generation (enterable buildings, trees, rocks, water, roads, clouds), player controller with recoil & sprint, first-person weapon, enemy AI (wander/combat FSM) with name sprites, shooting/bullet system, grenade physics, particle effects, loot/pickup system, zone shrinking with red wall, wall-segment collision detection, HUD updates, player-centered minimap, aim lock detection, audio (Web Audio API), mobile input handling, layout editor | ~1900+ |
 | `manifest.json` | PWA manifest: app name, icons, standalone display, landscape orientation | ~25 |
 | `sw.js` | Service worker: install/activate/fetch handlers, asset caching for offline play | ~35 |
-| `css/style.css` | Desktop UI styles: HUD layout, health bars, crosshair, hit markers, ADS scope overlay, minimap frame, zone warning, kill feed animations, start/game-over screens, damage flash vignette, weapon info panel, compass, reload bar | ~240 |
-| `css/mobile.css` | Mobile-specific styles: virtual joystick, look zone, action buttons (fire/ADS/jump/crouch/reload/grenade/pickup), weapon switch strip, responsive HUD scaling, landscape orientation enforcement, rotate prompt | ~150 |
+| `css/style.css` | Desktop UI styles: HUD layout, health bars, crosshair, aim lock indicator, hit markers, ADS scope overlay, minimap frame, zone warning, kill feed animations, start/game-over screens, damage flash vignette, weapon info panel, compass, reload bar | ~280 |
+| `css/mobile.css` | Mobile-specific styles: virtual joystick, look zone, action buttons (fire/ADS/jump/crouch/reload/grenade/pickup/sprint), weapon switch strip, layout editor with save/reset, responsive HUD scaling, landscape enforcement, rotate prompt | ~200 |
 
 ---
 
@@ -142,8 +151,10 @@ mini-royale/
 - **Crouch** (🦆): Toggle crouch
 - **R**: Reload
 - **💣**: Throw grenade
+- **Sprint** (🏃): Toggle sprint for faster movement
 - **Pick**: Pick up nearby loot (appears when near loot)
 - **1/2/3 strip**: Switch weapons
+- **⚙ Settings**: Drag buttons to reposition, save or reset layout
 
 ---
 
@@ -217,6 +228,13 @@ This entire project was **vibe coded** using [GitHub Copilot](https://github.com
 5. *"Anything we can do better?"* → Performance optimizations, zone timer, low ammo warnings
 6. *"I die too fast, want good file structure and README"* → Game rebalancing, project restructuring
 7. *"Extend map, enter houses, camera sync, PWA, rename"* → 1000×1000 map, enterable buildings, recoil system, PWA with icons, renamed to Mini Royale
+8. *"Fix mobile layout, fullscreen, safe area"* → Mobile UI polish, viewport-fit, safe-area insets
+9. *"Fix PWA for GitHub Pages and Vercel"* → Relative paths, display fullscreen, SW cache
+10. *"Organize folder structure"* → Moved icons to assets/icons/, JS to js/game.js
+11. *"Draggable buttons, bot names, red zone wall, minimap dots"* → Layout editor, name sprites, zone visualization, pulsing minimap
+12. *"Player-centered minimap, brighter settings icon"* → North-up minimap, green triangle marker
+13. *"Red pointer when aiming at enemy"* → Aim lock indicator ring on crosshair
+14. *"Run button like Free Fire, reset layout, update README"* → Sprint toggle button, layout reset, comprehensive README update
 
 No code was manually written. Every feature, every bug fix, every optimization was done through human-AI collaboration. That's vibe coding.
 
