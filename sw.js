@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mini-royale-v3';
+const CACHE_NAME = 'mini-royale-v4';
 const ASSETS = [
   './',
   './index.html',

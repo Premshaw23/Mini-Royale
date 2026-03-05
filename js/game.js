@@ -586,11 +586,11 @@ function createZoneVisual() {
     ring.position.y = 0.5;
     scene.add(ring);
     scene.userData.zoneRing = ring;
-    // Wall cylinder
-    const wallGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 80, 48, 1, true);
-    const wallMat = new THREE.MeshBasicMaterial({ color: 0x2244ff, transparent: true, opacity: 0.06, side: THREE.DoubleSide });
+    // Wall cylinder - tall red wall
+    const wallGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 200, 64, 1, true);
+    const wallMat = new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
     const wall = new THREE.Mesh(wallGeo, wallMat);
-    wall.position.set(zoneCenterX, 40, zoneCenterZ);
+    wall.position.set(zoneCenterX, 100, zoneCenterZ);
     scene.add(wall);
     scene.userData.zoneWall = wall;
 }
@@ -609,9 +609,9 @@ function updateZoneVisual() {
     }
     if (wall) {
         scene.remove(wall);
-        const wallGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 80, 48, 1, true);
+        const wallGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 200, 64, 1, true);
         const newWall = new THREE.Mesh(wallGeo, wall.material);
-        newWall.position.set(zoneCenterX, 40, zoneCenterZ);
+        newWall.position.set(zoneCenterX, 100, zoneCenterZ);
         scene.add(newWall);
         scene.userData.zoneWall = newWall;
     }
@@ -659,9 +659,31 @@ function createFPWeapon() {
     camera.add(fpWeaponGroup);
 }
 
+// ---- NAME SPRITES ----
+function makeNameSprite(name) {
+    var canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    var ctx = canvas.getContext('2d');
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, 256, 64);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(name, 128, 32);
+    var tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    var sprite = new THREE.Sprite(mat);
+    sprite.scale.set(4, 1, 1);
+    return sprite;
+}
+
 // ---- ENEMIES ----
 function createEnemies() {
-    const names = ['Shadow','Ghost','Viper','Hawk','Wolf','Raven','Storm','Blade','Fox','Cobra','Eagle','Tiger','Snake','Bear','Lynx','Shark','Crow','Bull','Puma','Falcon'];
+    const names = ['Shadow','Ghost','Viper','Hawk','Wolf','Raven','Storm','Blade','Fox','Cobra','Eagle','Tiger','Snake','Bear','Lynx','Shark','Crow','Bull','Puma','Falcon',
+        'Blaze','Frost','Reaper','Ace','Doom','Spark','Dagger','Scar','Bolt','Claw','Wraith','Ridge','Havoc','Fang','Rift','Jett'];
     for (let i = 0; i < ENEMY_COUNT; i++) {
         const ex = (Math.random() - 0.5) * MAP_SIZE * 0.8;
         const ez = (Math.random() - 0.5) * MAP_SIZE * 0.8;
@@ -700,13 +722,18 @@ function createEnemies() {
             hat.position.y = 4.05;
             group.add(hat);
         }
+        // Name label sprite
+        const botName = names[i] || ('Bot_' + (i + 1));
+        const nameSprite = makeNameSprite(botName);
+        nameSprite.position.y = 5.0;
+        group.add(nameSprite);
         group.position.set(ex, 0, ez);
         scene.add(group);
         const weaponIdx = Math.floor(Math.random() * WEAPONS.length);
         enemies.push({
             mesh: group, x: ex, z: ez,
             health: MAX_HP,
-            name: names[i] || 'Bot',
+            name: botName,
             speed: 5 + Math.random() * 4,
             sightRange: 35 + Math.random() * 25,
             accuracy: 0.14 + Math.random() * 0.1,
@@ -929,6 +956,91 @@ function setupMobileControls() {
             document.querySelectorAll('.ws-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }, { passive: false });
+    });
+
+    // Layout editor
+    setupLayoutEditor();
+}
+
+// ---- LAYOUT EDITOR ----
+function setupLayoutEditor() {
+    var editBtn = document.getElementById('btn-edit-layout');
+    var saveBtn = document.getElementById('layout-save');
+    var editing = false;
+    var dragTarget = null;
+    var dragOffX = 0, dragOffY = 0;
+    var draggables = ['btn-fire','btn-ads','btn-jump','btn-crouch','btn-reload','btn-grenade','joystick-zone','weapon-strip'];
+
+    // Load saved positions
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem('mr-layout')); } catch(e) {}
+    if (saved) {
+        for (var id in saved) {
+            var el = document.getElementById(id);
+            if (el && saved[id]) {
+                el.style.left = saved[id].left;
+                el.style.top = saved[id].top;
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+                el.style.transform = 'none';
+            }
+        }
+    }
+
+    editBtn.addEventListener('touchstart', function(ev) {
+        ev.preventDefault();
+        editing = !editing;
+        editBtn.classList.toggle('editing', editing);
+        document.body.classList.toggle('layout-editing', editing);
+        saveBtn.style.display = editing ? 'block' : 'none';
+    }, { passive: false });
+
+    saveBtn.addEventListener('touchstart', function(ev) {
+        ev.preventDefault();
+        var positions = {};
+        draggables.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                positions[id] = { left: el.style.left, top: el.style.top };
+            }
+        });
+        localStorage.setItem('mr-layout', JSON.stringify(positions));
+        editing = false;
+        editBtn.classList.remove('editing');
+        document.body.classList.remove('layout-editing');
+        saveBtn.style.display = 'none';
+    }, { passive: false });
+
+    document.addEventListener('touchstart', function(ev) {
+        if (!editing) return;
+        var t = ev.touches[0];
+        for (var i = 0; i < draggables.length; i++) {
+            var el = document.getElementById(draggables[i]);
+            if (!el) continue;
+            var r = el.getBoundingClientRect();
+            if (t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom) {
+                dragTarget = el;
+                dragOffX = t.clientX - r.left;
+                dragOffY = t.clientY - r.top;
+                ev.preventDefault();
+                return;
+            }
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function(ev) {
+        if (!editing || !dragTarget) return;
+        ev.preventDefault();
+        var t = ev.touches[0];
+        dragTarget.style.left = (t.clientX - dragOffX) + 'px';
+        dragTarget.style.top = (t.clientY - dragOffY) + 'px';
+        dragTarget.style.right = 'auto';
+        dragTarget.style.bottom = 'auto';
+        dragTarget.style.transform = 'none';
+    }, { passive: false });
+
+    document.addEventListener('touchend', function() {
+        dragTarget = null;
     });
 }
 
@@ -1613,6 +1725,11 @@ function updateEnemies(dt) {
             if (c[3]) c[3].rotation.x = -Math.sin(e.animTimer) * 0.5;
             if (c[4]) c[4].rotation.x = -Math.sin(e.animTimer) * 0.4;
             if (c[5]) c[5].rotation.x = Math.sin(e.animTimer) * 0.4;
+            // Name sprite visibility based on distance
+            var nameChild = c[c.length - 1];
+            if (nameChild && nameChild.isSprite) {
+                nameChild.visible = distToPlayer < 50;
+            }
         }
         e.mesh.position.set(e.x, 0, e.z);
     }
@@ -1731,15 +1848,33 @@ function drawMinimap() {
         ctx.fillRect((l.x+HALF_MAP)*scale-1, (l.z+HALF_MAP)*scale-1, 3, 3);
     });
 
-    // Enemies
-    ctx.fillStyle = '#f44';
+    // Enemies - red pulsing dots for nearby, faint for far
     enemies.forEach(e => {
         if (!e.alive) return;
         const dx = e.x-player.x, dz = e.z-player.z;
-        if (dx*dx+dz*dz < 6400) {
-            ctx.beginPath();
-            ctx.arc((e.x+HALF_MAP)*scale, (e.z+HALF_MAP)*scale, 2, 0, Math.PI*2);
-            ctx.fill();
+        const distSq = dx*dx+dz*dz;
+        if (distSq < 10000) {
+            const ex = (e.x+HALF_MAP)*scale;
+            const ez = (e.z+HALF_MAP)*scale;
+            if (distSq < 2500) {
+                // Close enemy - pulsing red dot
+                var pulse = 3 + Math.sin(Date.now() * 0.008) * 1.5;
+                ctx.fillStyle = '#ff2222';
+                ctx.beginPath();
+                ctx.arc(ex, ez, pulse, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,50,50,0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(ex, ez, pulse + 2, 0, Math.PI*2);
+                ctx.stroke();
+            } else {
+                // Medium range - static dot
+                ctx.fillStyle = '#f44';
+                ctx.beginPath();
+                ctx.arc(ex, ez, 2, 0, Math.PI*2);
+                ctx.fill();
+            }
         }
     });
 
