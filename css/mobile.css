@@ -9,7 +9,7 @@
 
 /* ===== Movement Joystick ===== */
 #joystick-zone {
-    position: fixed; bottom: 20px; left: 20px; width: 150px; height: 150px;
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: calc(20px + env(safe-area-inset-left, 0px)); width: 150px; height: 150px;
     z-index: 50; touch-action: none;
 }
 #joystick-base {
@@ -44,7 +44,7 @@
 
 /* -- Fire Button (primary, largest) -- */
 #btn-fire {
-    bottom: 28px; right: 24px; width: 76px; height: 76px;
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px)); right: 28px; width: 76px; height: 76px;
     background: radial-gradient(circle, rgba(255,60,60,0.55) 0%, rgba(200,30,30,0.45) 100%);
     border: 3px solid rgba(255,80,80,0.5);
     font-size: 26px;
@@ -57,7 +57,7 @@
 
 /* -- ADS Button -- */
 #btn-ads {
-    bottom: 120px; right: 24px; width: 52px; height: 52px;
+    bottom: calc(130px + env(safe-area-inset-bottom, 0px)); right: 28px; width: 52px; height: 52px;
     background: rgba(80,80,220,0.3); border: 2px solid rgba(100,100,255,0.4);
     font-size: 11px; letter-spacing: 0.5px;
 }
@@ -65,14 +65,14 @@
 
 /* -- Jump Button -- */
 #btn-jump {
-    bottom: 28px; right: 118px; width: 52px; height: 52px;
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px)); right: 122px; width: 52px; height: 52px;
     background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.22);
     font-size: 16px;
 }
 
 /* -- Crouch Button -- */
 #btn-crouch {
-    bottom: 120px; right: 118px; width: 48px; height: 48px;
+    bottom: calc(130px + env(safe-area-inset-bottom, 0px)); right: 122px; width: 48px; height: 48px;
     background: rgba(255,170,0,0.2); border: 2px solid rgba(255,170,0,0.35);
     font-size: 16px;
 }
@@ -80,14 +80,14 @@
 
 /* -- Reload Button -- */
 #btn-reload {
-    bottom: 190px; right: 24px; width: 46px; height: 46px;
+    bottom: calc(200px + env(safe-area-inset-bottom, 0px)); right: 28px; width: 46px; height: 46px;
     background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
     font-size: 13px;
 }
 
 /* -- Grenade Button -- */
 #btn-grenade {
-    bottom: 190px; right: 86px; width: 46px; height: 46px;
+    bottom: calc(200px + env(safe-area-inset-bottom, 0px)); right: 90px; width: 46px; height: 46px;
     background: rgba(255,170,0,0.18); border: 2px solid rgba(255,170,0,0.3);
     font-size: 18px;
 }
@@ -104,7 +104,7 @@
 
 /* ===== Weapon Switch Strip ===== */
 #weapon-strip {
-    position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
+    position: fixed; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
     z-index: 55; display: flex; gap: 5px;
 }
 .ws-btn {
@@ -123,15 +123,24 @@
 
 /* ===== Mobile HUD Adjustments ===== */
 .touch-device #hud {
-    bottom: 44px; gap: 4px;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px)); gap: 3px;
+    left: 50%; right: auto; transform: translateX(-50%);
+    flex-wrap: nowrap;
 }
-.touch-device .hud-box { padding: 3px 7px; }
-.touch-device .hud-value { font-size: 14px; }
-.touch-device .hud-label { font-size: 7px; }
-.touch-device #bars-wrap { bottom: 62px; width: 200px; }
-.touch-device #minimap { width: 110px; height: 110px; top: 6px; right: 6px; }
-.touch-device #minimap canvas { width: 106px; height: 106px; }
-.touch-device #weapon-info { bottom: 44px; right: 6px; padding: 3px 8px; }
+.touch-device .hud-box { padding: 2px 5px; min-width: 0; }
+.touch-device .hud-value { font-size: 12px; }
+.touch-device .hud-label { font-size: 6px; letter-spacing: 0.5px; }
+.touch-device #bars-wrap {
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px));
+    width: 180px; left: calc(50% + env(safe-area-inset-left, 0px) / 2);
+}
+.touch-device #minimap { width: 100px; height: 100px; top: 6px; right: 6px; }
+.touch-device #minimap canvas { width: 96px; height: 96px; }
+.touch-device #weapon-info {
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px));
+    right: auto; left: calc(8px + env(safe-area-inset-left, 0px));
+    padding: 3px 8px;
+}
 .touch-device #weapon-name { font-size: 9px; }
 .touch-device #weapon-mode { font-size: 8px; }
 .touch-device #compass { font-size: 9px; padding: 2px 8px; }
@@ -139,7 +148,7 @@
 .touch-device #crosshair .ch-h { width: 10px; }
 .touch-device #crosshair .ch-v { height: 10px; }
 .touch-device #interact-prompt { display: none; }
-.touch-device #stance-indicator { bottom: 44px; font-size: 9px; }
+.touch-device #stance-indicator { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); font-size: 9px; left: calc(8px + env(safe-area-inset-left, 0px)); }
 .touch-device #pickup-msg { bottom: 100px; font-size: 12px; }
 .touch-device #reload-bar-wrap { top: 52%; width: 100px; }
 .touch-device #kill-feed { max-width: 200px; }

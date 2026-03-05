@@ -938,6 +938,10 @@ function startGame() {
     getAudioCtx();
     if (!isMobile) {
         renderer.domElement.requestPointerLock();
+    } else {
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (rfs) rfs.call(el).catch(function(){});
     }
 }
 
