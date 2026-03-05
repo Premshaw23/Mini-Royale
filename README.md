@@ -1,5 +1,7 @@
 # Mini Royale - Free Fire Style Battle Royale
 
+**A browser-based 3D battle royale game inspired by Free Fire.** Drop into a massive map with 35 AI opponents, loot weapons and supplies, fight to survive as the zone shrinks, and be the last one standing — all running in your browser with no downloads, no installs, no server required. Works on desktop (keyboard + mouse) and mobile (touch controls). Built entirely with Three.js and vanilla JavaScript.
+
 > **This project is entirely vibe coded** — built from scratch using AI-assisted development (GitHub Copilot) through natural language conversations. No boilerplate, no starter templates, no tutorials followed. Every line of code was generated through a collaborative human-AI vibe coding workflow where the developer described what they wanted in plain English, and the AI wrote the code. This is what vibe coding looks like — turning ideas into a fully playable game through conversation.
 
 ![Battle Royale](https://img.shields.io/badge/Genre-Battle%20Royale-red)
@@ -54,8 +56,8 @@ A **fully playable 3D battle royale game** inspired by Free Fire, running entire
 - **Line-of-sight detection** with configurable sight range
 
 ### HUD & UI
-- **Player-centered minimap** — shows 200-unit radius around player, with FOV cone, pulsing enemy dots (closer = faster pulse), loot markers, zone ring, and building outlines
-- **Green triangle** player marker on minimap (always centered, north-up)
+- **Heading-up rotating minimap** — rotates with camera direction (like Free Fire), shows 200-unit radius around player, with FOV cone, pulsing enemy dots (closer = faster pulse), loot markers, zone ring, and building outlines
+- **Green triangle** player marker on minimap (always centered, always pointing up = forward)
 - **Compass** showing heading in degrees + cardinal direction
 - **Zone countdown timer** — shows time until next shrink, flashes red during shrinking
 - **Kill feed** with elimination notifications
@@ -235,6 +237,10 @@ This entire project was **vibe coded** using [GitHub Copilot](https://github.com
 12. *"Player-centered minimap, brighter settings icon"* → North-up minimap, green triangle marker
 13. *"Red pointer when aiming at enemy"* → Aim lock indicator ring on crosshair
 14. *"Run button like Free Fire, reset layout, update README"* → Sprint toggle button, layout reset, comprehensive README update
+15. *"Desktop is broken, white background on aim lock"* → Fixed mobile detection (any-pointer/any-hover), removed aim-lock artifacts, always register keyboard+mouse
+16. *"Minimap should rotate with camera like Free Fire"* → Heading-up rotating minimap, map spins around player
+17. *"Recoil is too much, I miss targets"* → Reduced recoil 60%, increased recovery to 85%, less horizontal sway
+18. *"Better landing page with logo"* → Professional start screen with SVG crosshair logo, animated background, stats row, polished UI
 
 No code was manually written. Every feature, every bug fix, every optimization was done through human-AI collaboration. That's vibe coding.
 
