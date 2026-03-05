@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battle Zone - Free Fire Style</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; cursor: crosshair; }
+        canvas { display: block; }
+        
+        /* HUD */
+        #hud {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 12px; align-items: flex-end; z-index: 10; pointer-events: none;
+        }
+        .hud-box {
+            background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; padding: 8px 14px; color: #fff; text-align: center;
+            backdrop-filter: blur(8px);
+        }
+        .hud-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; margin-bottom: 3px; }
+        .hud-value { font-size: 20px; font-weight: bold; }
+        #health-val { color: #4f4; }
+        #shield-val { color: #4af; }
+        #ammo-val { color: #ff4; transition: color 0.2s; }
+        #ammo-val.low-ammo { color: #f44; animation: ammoFlash 0.5s infinite; }
+        @keyframes ammoFlash { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        #kills-val { color: #f44; }
+        #alive-val { color: #4af; }
+        #grenade-val { color: #fa0; }
+        
+        /* Health + Shield bars */
+        #bars-wrap {
+            position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%);
+            width: 320px; z-index: 10; pointer-events: none;
+        }
+        .bar-row { display: flex; align-items: center; margin-bottom: 3px; }
+        .bar-icon { font-size: 11px; width: 18px; text-align: center; }
+        .bar-track {
+            flex: 1; height: 6px; background: rgba(0,0,0,0.6); border-radius: 3px;
+            overflow: hidden; margin-left: 6px;
+        }
+        #health-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0c0, #4f4); border-radius: 3px; transition: width 0.3s; }
+        #shield-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #28f, #6af); border-radius: 3px; transition: width 0.3s; }
+        
+        /* Crosshair */
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            z-index: 10; pointer-events: none; transition: opacity 0.2s;
+        }
+        #crosshair div { position: absolute; background: rgba(255,255,255,0.85); }
+        .ch-h { width: 18px; height: 2px; top: -1px; }
+        .ch-v { width: 2px; height: 18px; left: -1px; }
+        .ch-l { left: -24px; }
+        .ch-r { left: 6px; }
+        .ch-t { top: -24px; }
+        .ch-b { top: 6px; }
+        .ch-dot { width: 2px; height: 2px; left: -1px; top: -1px; background: #f44; border-radius: 50%; }
+        
+        /* Hit marker */
+        #hitmarker {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            z-index: 11; pointer-events: none; opacity: 0; transition: opacity 0.08s;
+        }
+        .hm-line {
+            position: absolute; width: 12px; height: 2px; background: #fff;
+            transform-origin: center;
+        }
+        .hm-1 { transform: translate(-2px,-12px) rotate(45deg); }
+        .hm-2 { transform: translate(4px,-2px) rotate(45deg); }
+        .hm-3 { transform: translate(-8px,4px) rotate(45deg); }
+        .hm-4 { transform: translate(-2px,10px) rotate(45deg); }
+        
+        /* ADS overlay */
+        #ads-overlay {
+            position: fixed; inset: 0; z-index: 8; pointer-events: none;
+            border: 3px solid rgba(0,0,0,0); border-radius: 0;
+            transition: border 0.2s, background 0.2s;
+        }
+        #ads-overlay.active {
+            border: 60px solid rgba(0,0,0,0.4);
+            border-radius: 50%;
+        }
+        
+        /* Minimap */
+        #minimap {
+            position: fixed; top: 15px; right: 15px; width: 190px; height: 190px;
+            background: rgba(0,0,0,0.65); border: 2px solid rgba(255,255,255,0.25);
+            border-radius: 10px; z-index: 10; pointer-events: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #minimap canvas { border-radius: 8px; }
+        
+        /* Zone warning */
+        #zone-warning {
+            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
+            color: #f44; font-size: 16px; font-weight: bold; z-index: 10;
+            text-shadow: 0 0 15px rgba(255,0,0,0.6); display: none; pointer-events: none;
+            animation: pulse 1s infinite;
+            background: rgba(0,0,0,0.5); padding: 6px 20px; border-radius: 4px;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* Zone timer */
+        #zone-timer {
+            position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
+            z-index: 10; pointer-events: none;
+            background: rgba(0,0,0,0.55); border-radius: 4px; padding: 3px 14px;
+            color: #6af; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+        }
+        #zone-timer.shrinking { color: #f44; animation: pulse 1s infinite; }
+        
+        /* Kill feed */
+        #kill-feed {
+            position: fixed; top: 15px; left: 15px; z-index: 10; pointer-events: none; max-width: 300px;
+        }
+        .kill-msg {
+            background: rgba(0,0,0,0.75); color: #fff; padding: 5px 12px;
+            border-radius: 4px; margin-bottom: 3px; font-size: 12px;
+            animation: fadeIn 0.3s; border-left: 3px solid #f44;
+        }
+        .kill-msg span { color: #f44; font-weight: bold; }
+        @keyframes fadeIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+        
+        /* Start screen */
+        #start-screen {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #0a0a1a 0%, #0f1a2e 30%, #1a0a2e 70%, #0a1a1e 100%);
+            overflow: hidden;
+        }
+        #start-screen::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at 30% 40%, rgba(255,80,0,0.08) 0%, transparent 60%),
+                        radial-gradient(circle at 70% 60%, rgba(0,100,255,0.08) 0%, transparent 60%);
+        }
+        #start-screen h1 {
+            font-size: 72px; color: #fff; text-shadow: 0 0 40px rgba(255,100,0,0.4), 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 8px; letter-spacing: 6px; position: relative;
+        }
+        #start-screen h1 span { color: #f64; text-shadow: 0 0 30px rgba(255,100,0,0.6); }
+        #start-screen .subtitle {
+            color: #777; font-size: 14px; margin-bottom: 50px; letter-spacing: 3px; text-transform: uppercase;
+        }
+        #start-btn {
+            padding: 16px 70px; font-size: 20px; background: linear-gradient(135deg, #f64, #e33);
+            color: #fff; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: bold; letter-spacing: 3px; text-transform: uppercase;
+            transition: transform 0.2s, box-shadow 0.2s; position: relative;
+        }
+        #start-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,80,0,0.5); }
+        .controls-info {
+            margin-top: 50px; color: #666; font-size: 12px; text-align: center; line-height: 2.2;
+            position: relative;
+        }
+        .controls-info kbd {
+            background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.15); color: #bbb; font-size: 11px;
+        }
+        
+        /* Game over */
+        #game-over {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        #game-over h1 { font-size: 52px; margin-bottom: 15px; letter-spacing: 3px; }
+        #game-over .stats { color: #999; font-size: 16px; margin-bottom: 30px; letter-spacing: 1px; }
+        #restart-btn {
+            padding: 14px 55px; font-size: 18px; background: linear-gradient(135deg, #f64, #e33);
+            color: #fff; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: bold; letter-spacing: 2px; text-transform: uppercase;
+        }
+        #restart-btn:hover { box-shadow: 0 0 30px rgba(255,80,0,0.4); }
+        
+        /* Damage flash + direction */
+        #damage-flash {
+            position: fixed; inset: 0; z-index: 9;
+            pointer-events: none; opacity: 0; transition: opacity 0.15s;
+        }
+        .dmg-vignette {
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at center, transparent 50%, rgba(255,0,0,0.4) 100%);
+        }
+        
+        /* Damage direction indicators */
+        #damage-dir {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            width: 200px; height: 200px; z-index: 9; pointer-events: none;
+        }
+        .dmg-arrow {
+            position: absolute; width: 40px; height: 6px; background: rgba(255,50,50,0.7);
+            border-radius: 3px; opacity: 0; transition: opacity 0.3s;
+        }
+        .dmg-top { top: 0; left: 50%; transform: translateX(-50%); }
+        .dmg-bot { bottom: 0; left: 50%; transform: translateX(-50%); }
+        .dmg-left { left: 0; top: 50%; transform: translateY(-50%) rotate(90deg); }
+        .dmg-right { right: 0; top: 50%; transform: translateY(-50%) rotate(90deg); }
+        
+        /* Weapon info */
+        #weapon-info {
+            position: fixed; bottom: 20px; right: 20px; z-index: 10; pointer-events: none;
+            background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; padding: 8px 16px; color: #fff;
+        }
+        #weapon-name { font-size: 13px; font-weight: bold; color: #f90; }
+        #weapon-mode { font-size: 10px; color: #888; margin-top: 2px; }
+        
+        /* Reload bar */
+        #reload-bar-wrap {
+            position: fixed; top: 55%; left: 50%; transform: translateX(-50%);
+            width: 120px; height: 4px; background: rgba(0,0,0,0.6); border-radius: 2px;
+            z-index: 10; pointer-events: none; display: none;
+        }
+        #reload-bar { height: 100%; width: 0%; background: #fff; border-radius: 2px; transition: width 0.05s linear; }
+        
+        /* Pickup notification */
+        #pickup-msg {
+            position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+            color: #4f4; font-size: 14px; font-weight: bold; z-index: 10; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s; text-shadow: 0 0 8px rgba(0,255,0,0.4);
+        }
+        
+        /* Stance indicator */
+        #stance-indicator {
+            position: fixed; bottom: 20px; left: 20px; z-index: 10; pointer-events: none;
+            color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        /* Compass */
+        #compass {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+            z-index: 10; pointer-events: none;
+            background: rgba(0,0,0,0.5); border-radius: 4px; padding: 3px 15px;
+            color: #ccc; font-size: 12px; font-weight: bold; letter-spacing: 2px;
+        }
+        
+        /* Interaction prompt */
+        #interact-prompt {
+            position: fixed; bottom: 180px; left: 50%; transform: translateX(-50%);
+            z-index: 10; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+            background: rgba(0,0,0,0.7); color: #fff; padding: 6px 16px; border-radius: 4px;
+            font-size: 13px;
+        }
+        #interact-prompt kbd {
+            background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.3); margin-right: 4px;
+        }
+
+        /* ===== MOBILE TOUCH CONTROLS ===== */
+        #mobile-controls { display: none; }
+        .touch-device #mobile-controls { display: block; }
+        .touch-device .controls-info { display: none; }
+        .touch-device body { cursor: default; }
+
+        /* Movement joystick */
+        #joystick-zone {
+            position: fixed; bottom: 20px; left: 20px; width: 150px; height: 150px;
+            z-index: 50; touch-action: none;
+        }
+        #joystick-base {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2);
+        }
+        #joystick-thumb {
+            position: absolute; width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4);
+            top: 50%; left: 50%; transform: translate(-50%,-50%);
+            transition: none;
+        }
+
+        /* Look zone (right side of screen) */
+        #look-zone {
+            position: fixed; top: 0; right: 0; width: 55%; height: 100%;
+            z-index: 45; touch-action: none;
+        }
+
+        /* Action buttons */
+        .touch-btn {
+            position: fixed; z-index: 50; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: bold; color: #fff;
+            touch-action: none; user-select: none;
+            -webkit-user-select: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+        .touch-btn:active { transform: scale(0.9); }
+
+        #btn-fire {
+            bottom: 60px; right: 30px; width: 80px; height: 80px;
+            background: rgba(255,50,50,0.5); border: 3px solid rgba(255,80,80,0.6);
+            font-size: 22px;
+        }
+        #btn-fire.firing { background: rgba(255,100,100,0.7); }
+
+        #btn-ads {
+            bottom: 160px; right: 30px; width: 54px; height: 54px;
+            background: rgba(100,100,255,0.35); border: 2px solid rgba(130,130,255,0.5);
+            font-size: 10px;
+        }
+        #btn-ads.active { background: rgba(100,100,255,0.65); }
+
+        #btn-jump {
+            bottom: 60px; right: 130px; width: 54px; height: 54px;
+            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        #btn-crouch {
+            bottom: 160px; right: 130px; width: 50px; height: 50px;
+            background: rgba(255,170,0,0.3); border: 2px solid rgba(255,170,0,0.45);
+            font-size: 10px;
+        }
+        #btn-crouch.active { background: rgba(255,170,0,0.6); }
+
+        #btn-reload {
+            bottom: 250px; right: 30px; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.25);
+            font-size: 10px;
+        }
+
+        #btn-grenade {
+            bottom: 250px; right: 100px; width: 50px; height: 50px;
+            background: rgba(255,170,0,0.25); border: 2px solid rgba(255,170,0,0.4);
+            font-size: 18px;
+        }
+
+        #btn-pickup {
+            bottom: 180px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 60px;
+            background: rgba(0,255,100,0.3); border: 2px solid rgba(0,255,100,0.5);
+            font-size: 10px; opacity: 0; pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        #btn-pickup.visible { opacity: 1; pointer-events: auto; }
+
+        /* Weapon switch strip */
+        #weapon-strip {
+            position: fixed; bottom: 5px; left: 50%; transform: translateX(-50%);
+            z-index: 50; display: flex; gap: 6px;
+        }
+        .ws-btn {
+            width: 44px; height: 36px; border-radius: 5px;
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.2);
+            color: #aaa; font-size: 10px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+        .ws-btn.active { border-color: #f90; color: #f90; background: rgba(255,150,0,0.15); }
+
+        /* Mobile adjustments */
+        .touch-device #hud {
+            bottom: 48px; gap: 6px;
+        }
+        .touch-device .hud-box { padding: 4px 8px; }
+        .touch-device .hud-value { font-size: 15px; }
+        .touch-device .hud-label { font-size: 7px; }
+        .touch-device #bars-wrap { bottom: 68px; width: 220px; }
+        .touch-device #minimap { width: 120px; height: 120px; top: 8px; right: 8px; }
+        .touch-device #minimap canvas { width: 116px; height: 116px; }
+        .touch-device #weapon-info { bottom: 46px; right: 8px; padding: 4px 10px; }
+        .touch-device #weapon-name { font-size: 10px; }
+        .touch-device #compass { font-size: 10px; padding: 2px 10px; }
+        .touch-device #zone-timer { font-size: 9px; padding: 2px 10px; top: 38px; }
+        .touch-device #crosshair .ch-h { width: 12px; }
+        .touch-device #crosshair .ch-v { height: 12px; }
+        .touch-device #interact-prompt { display: none; }
+
+        /* Force landscape - rotate prompt */
+        #rotate-prompt {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: #000; color: #fff;
+            flex-direction: column; align-items: center; justify-content: center;
+            font-size: 18px; text-align: center;
+        }
+        #rotate-prompt .rotate-icon {
+            font-size: 64px; margin-bottom: 20px;
+            animation: rotateAnim 2s ease-in-out infinite;
+        }
+        #rotate-prompt p { color: #aaa; margin-top: 10px; font-size: 13px; }
+        @keyframes rotateAnim {
+            0%,100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+        @media (orientation: portrait) {
+            .touch-device #rotate-prompt { display: flex; }
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="start-screen">
+    <h1>BATTLE <span>ZONE</span></h1>
+    <div class="subtitle">Battle Royale</div>
+    <button id="start-btn">DROP IN</button>
+    <div class="controls-info">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp;|&nbsp;
+        <kbd>Mouse</kbd> Look &nbsp;|&nbsp;
+        <kbd>LMB</kbd> Shoot &nbsp;|&nbsp;
+        <kbd>RMB</kbd> Aim Down Sights<br>
+        <kbd>R</kbd> Reload &nbsp;|&nbsp;
+        <kbd>Space</kbd> Jump &nbsp;|&nbsp;
+        <kbd>Shift</kbd> Sprint &nbsp;|&nbsp;
+        <kbd>C</kbd> Crouch<br>
+        <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Switch Weapons &nbsp;|&nbsp;
+        <kbd>G</kbd> Grenade &nbsp;|&nbsp;
+        <kbd>E</kbd> Pick Up
+    </div>
+</div>
+
+<!-- Game Over Screen -->
+<div id="game-over">
+    <h1 id="result-text"></h1>
+    <div class="stats" id="final-stats"></div>
+    <button id="restart-btn">PLAY AGAIN</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+    <div class="hud-box"><div class="hud-label">HP</div><div class="hud-value" id="health-val">100</div></div>
+    <div class="hud-box"><div class="hud-label">Shield</div><div class="hud-value" id="shield-val">0</div></div>
+    <div class="hud-box"><div class="hud-label">Ammo</div><div class="hud-value" id="ammo-val">30/90</div></div>
+    <div class="hud-box"><div class="hud-label">Kills</div><div class="hud-value" id="kills-val">0</div></div>
+    <div class="hud-box"><div class="hud-label">Alive</div><div class="hud-value" id="alive-val">20</div></div>
+    <div class="hud-box"><div class="hud-label">Nades</div><div class="hud-value" id="grenade-val">3</div></div>
+</div>
+
+<!-- Health + Shield bars -->
+<div id="bars-wrap">
+    <div class="bar-row"><div class="bar-icon">🛡</div><div class="bar-track"><div id="shield-bar"></div></div></div>
+    <div class="bar-row"><div class="bar-icon">❤</div><div class="bar-track"><div id="health-bar"></div></div></div>
+</div>
+
+<!-- Crosshair -->
+<div id="crosshair">
+    <div class="ch-h ch-l"></div>
+    <div class="ch-h ch-r"></div>
+    <div class="ch-v ch-t"></div>
+    <div class="ch-v ch-b"></div>
+    <div class="ch-dot"></div>
+</div>
+
+<!-- Hit marker -->
+<div id="hitmarker">
+    <div class="hm-line hm-1"></div>
+    <div class="hm-line hm-2"></div>
+    <div class="hm-line hm-3"></div>
+    <div class="hm-line hm-4"></div>
+</div>
+
+<!-- ADS overlay -->
+<div id="ads-overlay"></div>
+
+<!-- Minimap -->
+<div id="minimap"><canvas id="minimap-canvas" width="186" height="186"></canvas></div>
+
+<!-- Compass -->
+<div id="compass">N</div>
+
+<!-- Zone Timer -->
+<div id="zone-timer">Zone 1 | 0:35</div>
+
+<!-- Zone Warning -->
+<div id="zone-warning">⚠ OUTSIDE SAFE ZONE ⚠</div>
+
+<!-- Kill Feed -->
+<div id="kill-feed"></div>
+
+<!-- Damage Flash -->
+<div id="damage-flash"><div class="dmg-vignette"></div></div>
+
+<!-- Damage Direction -->
+<div id="damage-dir">
+    <div class="dmg-arrow dmg-top"></div>
+    <div class="dmg-arrow dmg-bot"></div>
+    <div class="dmg-arrow dmg-left"></div>
+    <div class="dmg-arrow dmg-right"></div>
+</div>
+
+<!-- Weapon Info -->
+<div id="weapon-info">
+    <div id="weapon-name">AR - Assault Rifle</div>
+    <div id="weapon-mode">AUTO</div>
+</div>
+
+<!-- Reload bar -->
+<div id="reload-bar-wrap"><div id="reload-bar"></div></div>
+
+<!-- Pickup Message -->
+<div id="pickup-msg"></div>
+
+<!-- Stance indicator -->
+<div id="stance-indicator">Standing</div>
+
+<!-- Interaction prompt -->
+<div id="interact-prompt"><kbd>E</kbd> Pick Up</div>
+
+<!-- Rotate Prompt (portrait block) -->
+<div id="rotate-prompt">
+    <div class="rotate-icon">📱</div>
+    <div>Rotate your device to landscape</div>
+    <p>This game plays in horizontal mode like Free Fire</p>
+</div>
+
+<!-- Mobile Touch Controls -->
+<div id="mobile-controls">
+    <div id="look-zone"></div>
+    <div id="joystick-zone">
+        <div id="joystick-base"></div>
+        <div id="joystick-thumb"></div>
+    </div>
+    <div id="btn-fire" class="touch-btn">🔥</div>
+    <div id="btn-ads" class="touch-btn">ADS</div>
+    <div id="btn-jump" class="touch-btn">⬆</div>
+    <div id="btn-crouch" class="touch-btn">🦆</div>
+    <div id="btn-reload" class="touch-btn">R</div>
+    <div id="btn-grenade" class="touch-btn">💣</div>
+    <div id="btn-pickup" class="touch-btn">Pick</div>
+    <div id="weapon-strip">
+        <div class="ws-btn" data-wep="0">1</div>
+        <div class="ws-btn active" data-wep="1">2</div>
+        <div class="ws-btn" data-wep="2">3</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>
