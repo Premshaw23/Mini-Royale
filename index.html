@@ -21,34 +21,29 @@
 
 <!-- Start Screen -->
 <div id="start-screen">
-    <canvas id="bg-particles"></canvas>
+    <div class="ss-particles"></div>
     <div class="ss-content">
-        <!-- Logo mark -->
-        <div class="logo-mark">
-            <svg viewBox="0 0 100 100" width="80" height="80">
-                <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,100,50,0.3)" stroke-width="2"/>
-                <circle cx="50" cy="50" r="28" fill="none" stroke="rgba(255,100,50,0.5)" stroke-width="1.5"/>
-                <line x1="50" y1="8" x2="50" y2="30" stroke="#f64" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="50" y1="70" x2="50" y2="92" stroke="#f64" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="8" y1="50" x2="30" y2="50" stroke="#f64" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="70" y1="50" x2="92" y2="50" stroke="#f64" stroke-width="2.5" stroke-linecap="round"/>
-                <circle cx="50" cy="50" r="4" fill="#f64"/>
+        <div class="ss-logo">
+            <svg class="ss-crosshair-icon" viewBox="0 0 80 80" width="60" height="60">
+                <circle cx="40" cy="40" r="20" fill="none" stroke="#f64" stroke-width="2" opacity="0.6"/>
+                <circle cx="40" cy="40" r="3" fill="#f64"/>
+                <line x1="40" y1="10" x2="40" y2="28" stroke="#f64" stroke-width="2" stroke-linecap="round"/>
+                <line x1="40" y1="52" x2="40" y2="70" stroke="#f64" stroke-width="2" stroke-linecap="round"/>
+                <line x1="10" y1="40" x2="28" y2="40" stroke="#f64" stroke-width="2" stroke-linecap="round"/>
+                <line x1="52" y1="40" x2="70" y2="40" stroke="#f64" stroke-width="2" stroke-linecap="round"/>
             </svg>
         </div>
-        <h1><span class="t-mini">MINI</span> <span class="t-royale">ROYALE</span></h1>
-        <div class="tagline">BATTLE ROYALE</div>
+        <h1>MINI<span>ROYALE</span></h1>
+        <div class="ss-tagline">LAST ONE STANDING WINS</div>
         <div class="ss-divider"></div>
-        <button id="start-btn">
-            <span class="btn-icon">▶</span>
-            <span>DROP IN</span>
-        </button>
-        <div class="ss-stats">
-            <div class="ss-stat"><span class="ss-stat-num">36</span><span class="ss-stat-label">PLAYERS</span></div>
-            <div class="ss-stat-sep"></div>
-            <div class="ss-stat"><span class="ss-stat-num">1</span><span class="ss-stat-label">WINNER</span></div>
-            <div class="ss-stat-sep"></div>
-            <div class="ss-stat"><span class="ss-stat-num">3</span><span class="ss-stat-label">WEAPONS</span></div>
+        <div class="ss-stats-row">
+            <div class="ss-stat"><span id="ss-players">36</span>PLAYERS</div>
+            <div class="ss-stat"><span>3</span>WEAPONS</div>
+            <div class="ss-stat"><span>1</span>WINNER</div>
         </div>
+        <button id="start-btn">
+            <span class="btn-icon">&#9654;</span> DROP IN
+        </button>
         <div class="controls-info">
             <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp;|&nbsp;
             <kbd>Mouse</kbd> Look &nbsp;|&nbsp;
@@ -62,7 +57,7 @@
             <kbd>G</kbd> Grenade &nbsp;|&nbsp;
             <kbd>E</kbd> Pick Up
         </div>
-        <div class="ss-version">v1.0</div>
+        <div class="ss-version">v1.0 &bull; Web Battle Royale</div>
     </div>
 </div>
 
