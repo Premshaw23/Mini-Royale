@@ -102,6 +102,17 @@
 }
 #btn-pickup.visible { opacity: 1; pointer-events: auto; }
 
+/* -- Run/Sprint Button -- */
+#btn-run {
+    bottom: calc(38px + env(safe-area-inset-bottom, 0px)); left: 170px; width: 52px; height: 52px;
+    background: rgba(0,180,255,0.2); border: 2px solid rgba(0,180,255,0.35);
+    font-size: 18px;
+}
+#btn-run.active {
+    background: rgba(0,180,255,0.55); border-color: rgba(80,210,255,0.7);
+    box-shadow: 0 0 12px rgba(0,180,255,0.3);
+}
+
 /* ===== Weapon Switch Strip ===== */
 #weapon-strip {
     position: fixed; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
@@ -172,14 +183,15 @@
 .layout-editing #joystick-zone {
     outline: 2px dashed rgba(255,150,0,0.6) !important;
 }
-#layout-save {
-    position: fixed; bottom: 50%; left: 50%; transform: translateX(-50%);
-    z-index: 201; padding: 10px 30px; border-radius: 6px;
-    background: linear-gradient(135deg, #f64, #e33); border: none;
+#layout-save, #layout-reset {
+    position: fixed; bottom: 50%; left: 50%; z-index: 201;
+    padding: 10px 30px; border-radius: 6px; border: none;
     color: #fff; font-size: 14px; font-weight: bold; display: none;
     cursor: pointer;
 }
-.layout-editing #layout-save { display: block; }
+#layout-save { transform: translateX(-110%); background: linear-gradient(135deg, #f64, #e33); }
+#layout-reset { transform: translateX(10%); background: linear-gradient(135deg, #888, #555); }
+.layout-editing #layout-save, .layout-editing #layout-reset { display: block; }
 
 /* ===== Force Landscape - Rotate Prompt ===== */
 #rotate-prompt {

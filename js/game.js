@@ -38,7 +38,7 @@ let fireTimer = 0;
 let playerHealth = MAX_HP;
 let playerShield = 50;
 let grenadeCount = 3;
-let isCrouching = false, isADS = false;
+let isCrouching = false, isADS = false, isSprinting = false;
 let headBob = 0, headBobTimer = 0;
 let recoilPitch = 0; // visual recoil offset
 let gameStarted = false, gameOver = false;
@@ -47,6 +47,9 @@ let fpWeaponGroup;
 
 // UI timeout IDs (prevent race conditions)
 let _hitmarkerTimeout, _dmgFlashTimeout, _dmgDirTimeout, _pickupTimeout;
+
+// Cached DOM elements (avoid getElementById in game loop)
+let _dom = {};
 
 // Zone
 let zoneRadius = HALF_MAP;
@@ -77,6 +80,11 @@ const _bulletGeo = new THREE.SphereGeometry(0.08, 4, 4);
 const _bulletMatPlayer = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 const _bulletMatEnemy = new THREE.MeshBasicMaterial({ color: 0xff4400 });
 const _particleGeo = new THREE.SphereGeometry(0.1, 4, 3);
+
+// Reusable vectors for aim detection (avoid allocation in loop)
+const _aimLookDir = new THREE.Vector3();
+const _aimAxisX = new THREE.Vector3(1, 0, 0);
+const _aimAxisY = new THREE.Vector3(0, 1, 0);
 
 // ---- INIT ----
 function init() {
@@ -321,7 +329,12 @@ function createClouds() {
 
 
 // ---- MOBILE DETECTION ----
-const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+// Use any-pointer/any-hover: if ANY input device has fine pointer or hover, treat as desktop.
+// Touchscreen laptops have trackpad (fine pointer + hover), so they're excluded.
+// Only true phones/tablets have exclusively coarse pointers with no hover.
+const hasFinePointer = window.matchMedia('(any-pointer: fine)').matches;
+const hasHover = window.matchMedia('(any-hover: hover)').matches;
+const isMobile = !hasFinePointer && !hasHover;
 if (isMobile) {
     document.documentElement.classList.add('touch-device');
     // Lock landscape orientation
@@ -765,34 +778,35 @@ function setupControls() {
     });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
 
-    // Mouse (desktop)
-    if (!isMobile) {
-        document.addEventListener('mousedown', e => {
-            if (!gameStarted || gameOver) return;
-            if (e.button === 0) mouseDown = true;
-            if (e.button === 2) { rightMouseDown = true; toggleADS(true); }
-        });
-        document.addEventListener('mouseup', e => {
-            if (e.button === 0) mouseDown = false;
-            if (e.button === 2) { rightMouseDown = false; toggleADS(false); }
-        });
-        document.addEventListener('mousemove', e => {
-            if (!gameStarted || gameOver || !document.pointerLockElement) return;
-            yaw -= e.movementX * 0.002;
-            pitch -= e.movementY * 0.002;
-            pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
-        });
-        document.addEventListener('contextmenu', e => e.preventDefault());
-    }
+    // Mouse + keyboard always registered (works on desktop & touchscreen laptops)
+    document.addEventListener('mousedown', e => {
+        if (!gameStarted || gameOver) return;
+        if (e.button === 0) mouseDown = true;
+        if (e.button === 2) { rightMouseDown = true; toggleADS(true); }
+    });
+    document.addEventListener('mouseup', e => {
+        if (e.button === 0) mouseDown = false;
+        if (e.button === 2) { rightMouseDown = false; toggleADS(false); }
+    });
+    document.addEventListener('mousemove', e => {
+        if (!gameStarted || gameOver || !document.pointerLockElement) return;
+        yaw -= e.movementX * 0.002;
+        pitch -= e.movementY * 0.002;
+        pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+    });
+    document.addEventListener('contextmenu', e => e.preventDefault());
 
-    // Mobile touch controls
+    // Mobile touch controls (only on real mobile devices)
     if (isMobile) {
         setupMobileControls();
     }
 
     // Start + restart
     document.getElementById('start-btn').addEventListener('click', startGame);
-    document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+    document.getElementById('restart-btn').addEventListener('click', () => {
+        document.getElementById('game-over').style.opacity = '0';
+        setTimeout(() => location.reload(), 200);
+    });
 
     // Resize
     window.addEventListener('resize', () => {
@@ -947,6 +961,17 @@ function setupMobileControls() {
     // Pickup button
     document.getElementById('btn-pickup').addEventListener('touchstart', e => { e.preventDefault(); tryPickup(); }, { passive: false });
 
+    // Run/Sprint button (toggle like Free Fire)
+    const btnRun = document.getElementById('btn-run');
+    btnRun.addEventListener('touchstart', e => {
+        e.preventDefault();
+        isSprinting = !isSprinting;
+        if (isSprinting) isCrouching = false;
+        btnRun.classList.toggle('active', isSprinting);
+        document.getElementById('btn-crouch').classList.remove('active');
+        document.getElementById('stance-indicator').textContent = isSprinting ? 'Sprinting' : 'Standing';
+    }, { passive: false });
+
     // Weapon strip
     document.querySelectorAll('.ws-btn').forEach(btn => {
         btn.addEventListener('touchstart', e => {
@@ -966,10 +991,11 @@ function setupMobileControls() {
 function setupLayoutEditor() {
     var editBtn = document.getElementById('btn-edit-layout');
     var saveBtn = document.getElementById('layout-save');
+    var resetBtn = document.getElementById('layout-reset');
     var editing = false;
     var dragTarget = null;
     var dragOffX = 0, dragOffY = 0;
-    var draggables = ['btn-fire','btn-ads','btn-jump','btn-crouch','btn-reload','btn-grenade','joystick-zone','weapon-strip'];
+    var draggables = ['btn-fire','btn-ads','btn-jump','btn-crouch','btn-reload','btn-grenade','btn-run','joystick-zone','weapon-strip'];
 
     // Load saved positions
     var saved = null;
@@ -1011,6 +1037,25 @@ function setupLayoutEditor() {
         saveBtn.style.display = 'none';
     }, { passive: false });
 
+    resetBtn.addEventListener('touchstart', function(ev) {
+        ev.preventDefault();
+        localStorage.removeItem('mr-layout');
+        draggables.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.style.left = '';
+                el.style.top = '';
+                el.style.right = '';
+                el.style.bottom = '';
+                el.style.transform = '';
+            }
+        });
+        editing = false;
+        editBtn.classList.remove('editing');
+        document.body.classList.remove('layout-editing');
+        saveBtn.style.display = 'none';
+    }, { passive: false });
+
     document.addEventListener('touchstart', function(ev) {
         if (!editing) return;
         var t = ev.touches[0];
@@ -1045,8 +1090,20 @@ function setupLayoutEditor() {
 }
 
 function startGame() {
-    document.getElementById('start-screen').style.display = 'none';
+    var startScreen = document.getElementById('start-screen');
+    startScreen.classList.add('hidden');
+    setTimeout(function() { startScreen.style.display = 'none'; }, 400);
     gameStarted = true;
+    // Cache DOM elements for game loop
+    _dom.reloadBar = document.getElementById('reload-bar');
+    _dom.aimLock = document.getElementById('aim-lock');
+    _dom.compass = document.getElementById('compass');
+    _dom.healthVal = document.getElementById('health-val');
+    _dom.shieldVal = document.getElementById('shield-val');
+    _dom.healthBar = document.getElementById('health-bar');
+    _dom.shieldBar = document.getElementById('shield-bar');
+    _dom.btnPickup = document.getElementById('btn-pickup');
+    _dom.interactPrompt = document.getElementById('interact-prompt');
     getAudioCtx();
     if (!isMobile) {
         renderer.domElement.requestPointerLock();
@@ -1122,6 +1179,7 @@ function toggleADS(on) {
 
 function toggleCrouch() {
     isCrouching = !isCrouching;
+    if (isCrouching) { isSprinting = false; document.getElementById('btn-run').classList.remove('active'); }
     document.getElementById('stance-indicator').textContent = isCrouching ? 'Crouching' : 'Standing';
 }
 
@@ -1155,9 +1213,9 @@ function playerShoot() {
     playSound('shoot');
     // Camera recoil kick
     const w2 = WEAPONS[currentWeaponIndex];
-    recoilPitch += (isADS ? 0.008 : 0.015) * (w2.name === 'Shotgun' ? 2.5 : 1);
-    pitch += (isADS ? 0.008 : 0.015) * (w2.name === 'Shotgun' ? 2.5 : 1);
-    yaw += (Math.random() - 0.5) * 0.005;
+    recoilPitch += (isADS ? 0.003 : 0.006) * (w2.name === 'Shotgun' ? 2.5 : 1);
+    pitch += (isADS ? 0.003 : 0.006) * (w2.name === 'Shotgun' ? 2.5 : 1);
+    yaw += (Math.random() - 0.5) * 0.002;
     if (weaponMag <= 0) startReload();
 }
 
@@ -1398,7 +1456,7 @@ function update(dt) {
     if (isReloading) {
         reloadTimer -= dt;
         const pct = 1 - (reloadTimer / reloadDuration);
-        document.getElementById('reload-bar').style.width = (pct * 100) + '%';
+        _dom.reloadBar.style.width = (pct * 100) + '%';
         if (reloadTimer <= 0) finishReload();
     }
 
@@ -1428,8 +1486,7 @@ function update(dt) {
             const dx = player.x - l.x, dz = player.z - l.z;
             if (dx*dx + dz*dz < 25) { nearLoot = true; break; }
         }
-        const btn = document.getElementById('btn-pickup');
-        btn.classList.toggle('visible', nearLoot);
+        _dom.btnPickup.classList.toggle('visible', nearLoot);
     }
 
     // Interact prompt (desktop)
@@ -1440,11 +1497,29 @@ function update(dt) {
             const dx = player.x - l.x, dz = player.z - l.z;
             if (dx*dx + dz*dz < 25) { nearLoot = true; break; }
         }
-        document.getElementById('interact-prompt').style.opacity = nearLoot ? '1' : '0';
+        _dom.interactPrompt.style.opacity = nearLoot ? '1' : '0';
     }
 
     // Compass
     updateCompass();
+
+    // Aim lock detection - red crosshair when pointing at enemy
+    var aimLocked = false;
+    _aimLookDir.set(0, 0, -1);
+    _aimLookDir.applyAxisAngle(_aimAxisX, pitch);
+    _aimLookDir.applyAxisAngle(_aimAxisY, yaw);
+    for (var ei = 0; ei < enemies.length; ei++) {
+        var en = enemies[ei];
+        if (!en.alive) continue;
+        var tox = en.x - player.x;
+        var toy = 2.5 - player.y;
+        var toz = en.z - player.z;
+        var toDist = Math.sqrt(tox * tox + toy * toy + toz * toz);
+        if (toDist > 80) continue;
+        var dot = (tox * _aimLookDir.x + toy * _aimLookDir.y + toz * _aimLookDir.z) / toDist;
+        if (dot > 0.97) { aimLocked = true; break; }
+    }
+    _dom.aimLock.classList.toggle('locked', aimLocked);
 
     // HUD
     updateBarsHUD();
@@ -1467,7 +1542,7 @@ function update(dt) {
 }
 
 function updatePlayer(dt) {
-    const sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+    const sprinting = keys['ShiftLeft'] || keys['ShiftRight'] || isSprinting;
     const speed = isCrouching ? 5 : (sprinting ? 16 : 9);
     const targetH = isCrouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
 
@@ -1530,9 +1605,9 @@ function updatePlayer(dt) {
 
     // Recoil recovery — smoothly return camera after recoil kick
     if (recoilPitch > 0) {
-        const recover = Math.min(recoilPitch, dt * 3);
+        const recover = Math.min(recoilPitch, dt * 4);
         recoilPitch -= recover;
-        pitch -= recover * 0.4;
+        pitch -= recover * 0.85;
     }
 }
 
@@ -1642,7 +1717,7 @@ function updateCompass() {
     else if (deg < 247.5) dir = 'SE';
     else if (deg < 292.5) dir = 'E';
     else dir = 'NE';
-    document.getElementById('compass').textContent = dir + ' ' + Math.round(deg) + '°';
+    _dom.compass.textContent = dir + ' ' + Math.round(deg) + '°';
 }
 
 function updateEnemies(dt) {
@@ -1788,14 +1863,13 @@ function updateZone(dt) {
 function updateBarsHUD() {
     const hp = Math.max(0, Math.round(playerHealth));
     const sh = Math.max(0, Math.round(playerShield));
-    document.getElementById('health-val').textContent = hp;
-    document.getElementById('shield-val').textContent = sh;
-    const hBar = document.getElementById('health-bar');
-    hBar.style.width = (hp / MAX_HP * 100) + '%';
-    if (hp > 60) hBar.style.background = 'linear-gradient(90deg, #0f0, #4f4)';
-    else if (hp > 30) hBar.style.background = 'linear-gradient(90deg, #ff0, #fa0)';
-    else hBar.style.background = 'linear-gradient(90deg, #f00, #f44)';
-    document.getElementById('shield-bar').style.width = (sh / MAX_SHIELD * 100) + '%';
+    _dom.healthVal.textContent = hp;
+    _dom.shieldVal.textContent = sh;
+    _dom.healthBar.style.width = (hp / MAX_HP * 100) + '%';
+    if (hp > 60) _dom.healthBar.style.background = 'linear-gradient(90deg, #0f0, #4f4)';
+    else if (hp > 30) _dom.healthBar.style.background = 'linear-gradient(90deg, #ff0, #fa0)';
+    else _dom.healthBar.style.background = 'linear-gradient(90deg, #f00, #f44)';
+    _dom.shieldBar.style.width = (sh / MAX_SHIELD * 100) + '%';
 }
 
 function addKillFeed(killer, victim) {
@@ -1819,15 +1893,20 @@ function drawMinimap() {
     const ctx = minimapCtx;
     const w = 186, h = 186;
     const half = w / 2;
-    // Player-centered minimap - show 200 unit radius around player
+    // Player-centered, heading-up minimap (rotates with camera like Free Fire)
     var viewRange = 200;
     var mScale = half / viewRange;
     ctx.fillStyle = '#1a2a1a';
     ctx.fillRect(0, 0, w, h);
 
-    // Helper: world to minimap coords (player-centered, north-up)
-    function wx(worldX) { return half + (worldX - player.x) * mScale; }
-    function wz(worldZ) { return half + (worldZ - player.z) * mScale; }
+    // Rotate entire map so player's forward is always UP
+    ctx.save();
+    ctx.translate(half, half);
+    ctx.rotate(yaw);
+
+    // Helper: world to rotated minimap coords (relative to player, pre-rotation)
+    function wx(worldX) { return (worldX - player.x) * mScale; }
+    function wz(worldZ) { return (worldZ - player.z) * mScale; }
 
     // Map boundary
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -1849,8 +1928,6 @@ function drawMinimap() {
             var wall = b.walls[i];
             var x1 = wx(wall.x1), z1 = wz(wall.z1);
             var x2 = wx(wall.x2), z2 = wz(wall.z2);
-            if (x1 < -20 && x2 < -20 || x1 > w+20 && x2 > w+20) continue;
-            if (z1 < -20 && z2 < -20 || z1 > h+20 && z2 > h+20) continue;
             ctx.beginPath();
             ctx.moveTo(x1, z1);
             ctx.lineTo(x2, z2);
@@ -1862,7 +1939,8 @@ function drawMinimap() {
     lootItems.forEach(function(l) {
         if (!l.active) return;
         var lx = wx(l.x), lz = wz(l.z);
-        if (lx < 0 || lx > w || lz < 0 || lz > h) return;
+        // Skip if too far (outside rotated view)
+        if (Math.abs(lx) > half + 10 || Math.abs(lz) > half + 10) return;
         ctx.fillStyle = l.type==='health'?'#0f0':l.type==='ammo'?'#ff0':l.type==='shield'?'#48f':'#fa0';
         ctx.fillRect(lx - 1, lz - 1, 3, 3);
     });
@@ -1874,7 +1952,7 @@ function drawMinimap() {
         var distSq = dx * dx + dz * dz;
         if (distSq < 10000) {
             var ex = wx(e.x), ez = wz(e.z);
-            if (ex < -5 || ex > w+5 || ez < -5 || ez > h+5) return;
+            if (Math.abs(ex) > half + 10 || Math.abs(ez) > half + 10) return;
             if (distSq < 2500) {
                 var pulse = 3 + Math.sin(Date.now() * 0.008) * 1.5;
                 ctx.fillStyle = '#ff2222';
@@ -1895,10 +1973,11 @@ function drawMinimap() {
         }
     });
 
-    // Player - triangle pointing in look direction (always centered)
+    ctx.restore();
+
+    // Player - triangle always pointing UP (forward) at center
     ctx.save();
     ctx.translate(half, half);
-    ctx.rotate(-yaw);
     ctx.fillStyle = '#00ff88';
     ctx.beginPath();
     ctx.moveTo(0, -7);
@@ -1911,15 +1990,15 @@ function drawMinimap() {
     ctx.stroke();
     ctx.restore();
 
-    // FOV cone from center
+    // FOV cone - always pointing UP from center
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
     var fovHalf = 0.4;
     ctx.beginPath();
     ctx.moveTo(half, half);
-    ctx.lineTo(half - Math.sin(yaw - fovHalf) * 30, half - Math.cos(yaw - fovHalf) * 30);
+    ctx.lineTo(half + Math.sin(-fovHalf) * 30, half - Math.cos(fovHalf) * 30);
     ctx.moveTo(half, half);
-    ctx.lineTo(half - Math.sin(yaw + fovHalf) * 30, half - Math.cos(yaw + fovHalf) * 30);
+    ctx.lineTo(half + Math.sin(fovHalf) * 30, half - Math.cos(fovHalf) * 30);
     ctx.stroke();
 }
 
@@ -1950,6 +2029,73 @@ function animate() {
     update(dt);
     renderer.render(scene, camera);
 }
+
+// ---- LANDING SCREEN PARTICLES ----
+(function initBgParticles() {
+    const c = document.getElementById('bg-particles');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const particles = [];
+    const COUNT = 60;
+
+    function resize() {
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < COUNT; i++) {
+        particles.push({
+            x: Math.random() * c.width,
+            y: Math.random() * c.height,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.3,
+            r: Math.random() * 2 + 0.5,
+            a: Math.random() * 0.3 + 0.05
+        });
+    }
+
+    function draw() {
+        if (c.offsetParent === null) return; // stop when hidden
+        ctx.clearRect(0, 0, c.width, c.height);
+
+        // Draw connections
+        for (let i = 0; i < COUNT; i++) {
+            for (let j = i + 1; j < COUNT; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 150) {
+                    ctx.strokeStyle = 'rgba(255,100,50,' + (0.06 * (1 - dist / 150)) + ')';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Draw particles
+        for (const p of particles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x < 0) p.x = c.width;
+            if (p.x > c.width) p.x = 0;
+            if (p.y < 0) p.y = c.height;
+            if (p.y > c.height) p.y = 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,120,60,' + p.a + ')';
+            ctx.fill();
+        }
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
 
 // ---- START ----
 init();
