@@ -1,15 +1,15 @@
-const CACHE_NAME = 'mini-royale-v1';
+const CACHE_NAME = 'mini-royale-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/game.js',
-  '/css/style.css',
-  '/css/mobile.css',
-  '/manifest.json',
-  '/android-chrome-192x192.png',
-  '/android-chrome-512x512.png',
-  '/apple-touch-icon.png',
-  '/favicon.ico'
+  './',
+  './index.html',
+  './game.js',
+  './css/style.css',
+  './css/mobile.css',
+  './manifest.json',
+  './android-chrome-192x192.png',
+  './android-chrome-512x512.png',
+  './apple-touch-icon.png',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', event => {

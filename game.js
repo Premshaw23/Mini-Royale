@@ -939,9 +939,9 @@ function startGame() {
     if (!isMobile) {
         renderer.domElement.requestPointerLock();
     } else {
-        const el = document.documentElement;
-        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-        if (rfs) rfs.call(el).catch(function(){});
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen({navigationUI:'hide'}).catch(function(){});
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     }
 }
 
