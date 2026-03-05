@@ -1818,13 +1818,25 @@ function sanitize(str) {
 function drawMinimap() {
     const ctx = minimapCtx;
     const w = 186, h = 186;
-    const scale = w / MAP_SIZE;
+    const half = w / 2;
+    // Player-centered minimap - show 200 unit radius around player
+    var viewRange = 200;
+    var mScale = half / viewRange;
     ctx.fillStyle = '#1a2a1a';
     ctx.fillRect(0, 0, w, h);
 
-    // Zone
+    // Helper: world to minimap coords (player-centered, north-up)
+    function wx(worldX) { return half + (worldX - player.x) * mScale; }
+    function wz(worldZ) { return half + (worldZ - player.z) * mScale; }
+
+    // Map boundary
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wx(-HALF_MAP), wz(-HALF_MAP), MAP_SIZE * mScale, MAP_SIZE * mScale);
+
+    // Zone circle
     ctx.beginPath();
-    ctx.arc((zoneCenterX+HALF_MAP)*scale, (zoneCenterZ+HALF_MAP)*scale, zoneRadius*scale, 0, Math.PI*2);
+    ctx.arc(wx(zoneCenterX), wz(zoneCenterZ), zoneRadius * mScale, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(80,120,255,0.6)';
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -1832,75 +1844,82 @@ function drawMinimap() {
     // Buildings
     ctx.strokeStyle = 'rgba(200,180,140,0.7)';
     ctx.lineWidth = 1.5;
-    buildings.forEach(b => {
-        for (const wall of b.walls) {
+    buildings.forEach(function(b) {
+        for (var i = 0; i < b.walls.length; i++) {
+            var wall = b.walls[i];
+            var x1 = wx(wall.x1), z1 = wz(wall.z1);
+            var x2 = wx(wall.x2), z2 = wz(wall.z2);
+            if (x1 < -20 && x2 < -20 || x1 > w+20 && x2 > w+20) continue;
+            if (z1 < -20 && z2 < -20 || z1 > h+20 && z2 > h+20) continue;
             ctx.beginPath();
-            ctx.moveTo((wall.x1+HALF_MAP)*scale, (wall.z1+HALF_MAP)*scale);
-            ctx.lineTo((wall.x2+HALF_MAP)*scale, (wall.z2+HALF_MAP)*scale);
+            ctx.moveTo(x1, z1);
+            ctx.lineTo(x2, z2);
             ctx.stroke();
         }
     });
 
     // Loot
-    lootItems.forEach(l => {
+    lootItems.forEach(function(l) {
         if (!l.active) return;
+        var lx = wx(l.x), lz = wz(l.z);
+        if (lx < 0 || lx > w || lz < 0 || lz > h) return;
         ctx.fillStyle = l.type==='health'?'#0f0':l.type==='ammo'?'#ff0':l.type==='shield'?'#48f':'#fa0';
-        ctx.fillRect((l.x+HALF_MAP)*scale-1, (l.z+HALF_MAP)*scale-1, 3, 3);
+        ctx.fillRect(lx - 1, lz - 1, 3, 3);
     });
 
     // Enemies - red pulsing dots for nearby, faint for far
-    enemies.forEach(e => {
+    enemies.forEach(function(e) {
         if (!e.alive) return;
-        const dx = e.x-player.x, dz = e.z-player.z;
-        const distSq = dx*dx+dz*dz;
+        var dx = e.x - player.x, dz = e.z - player.z;
+        var distSq = dx * dx + dz * dz;
         if (distSq < 10000) {
-            const ex = (e.x+HALF_MAP)*scale;
-            const ez = (e.z+HALF_MAP)*scale;
+            var ex = wx(e.x), ez = wz(e.z);
+            if (ex < -5 || ex > w+5 || ez < -5 || ez > h+5) return;
             if (distSq < 2500) {
-                // Close enemy - pulsing red dot
                 var pulse = 3 + Math.sin(Date.now() * 0.008) * 1.5;
                 ctx.fillStyle = '#ff2222';
                 ctx.beginPath();
-                ctx.arc(ex, ez, pulse, 0, Math.PI*2);
+                ctx.arc(ex, ez, pulse, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.strokeStyle = 'rgba(255,50,50,0.5)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.arc(ex, ez, pulse + 2, 0, Math.PI*2);
+                ctx.arc(ex, ez, pulse + 2, 0, Math.PI * 2);
                 ctx.stroke();
             } else {
-                // Medium range - static dot
                 ctx.fillStyle = '#f44';
                 ctx.beginPath();
-                ctx.arc(ex, ez, 2, 0, Math.PI*2);
+                ctx.arc(ex, ez, 2, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
     });
 
-    // Player + direction
-    const px = (player.x+HALF_MAP)*scale;
-    const pz = (player.z+HALF_MAP)*scale;
-    ctx.fillStyle = '#fff';
+    // Player - triangle pointing in look direction (always centered)
+    ctx.save();
+    ctx.translate(half, half);
+    ctx.rotate(-yaw);
+    ctx.fillStyle = '#00ff88';
     ctx.beginPath();
-    ctx.arc(px, pz, 3, 0, Math.PI*2);
+    ctx.moveTo(0, -7);
+    ctx.lineTo(-5, 5);
+    ctx.lineTo(5, 5);
+    ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(px, pz);
-    ctx.lineTo(px - Math.sin(yaw)*10, pz - Math.cos(yaw)*10);
-    ctx.stroke();
-
-    // FOV cone
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 1;
-    const fovHalf = 0.4;
+    ctx.stroke();
+    ctx.restore();
+
+    // FOV cone from center
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    var fovHalf = 0.4;
     ctx.beginPath();
-    ctx.moveTo(px, pz);
-    ctx.lineTo(px - Math.sin(yaw-fovHalf)*20, pz - Math.cos(yaw-fovHalf)*20);
-    ctx.moveTo(px, pz);
-    ctx.lineTo(px - Math.sin(yaw+fovHalf)*20, pz - Math.cos(yaw+fovHalf)*20);
+    ctx.moveTo(half, half);
+    ctx.lineTo(half - Math.sin(yaw - fovHalf) * 30, half - Math.cos(yaw - fovHalf) * 30);
+    ctx.moveTo(half, half);
+    ctx.lineTo(half - Math.sin(yaw + fovHalf) * 30, half - Math.cos(yaw + fovHalf) * 30);
     ctx.stroke();
 }
 
