@@ -9,7 +9,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Mobile-green)
 ![Vibe Coded](https://img.shields.io/badge/Built%20With-Vibe%20Coding-purple)
 
----
+--- 
 
 ## What is This?
 
